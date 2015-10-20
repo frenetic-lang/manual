@@ -1,0 +1,37 @@
+\newif\ifdraft\drafttrue
+
+\documentclass[12pt]{report}
+
+\usepackage{palatino}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\lstset{language=Python, frame=lines, numbers=left, basicstyle=\ttfamily}
+\lstdefinestyle{BashInputStyle}{ 
+  language=bash, 
+  basicstyle=\small\ttfamily,
+  numbers=left,
+  columns=fullflexible,
+  keepspaces=true,
+  backgroundcolor=\color{yellow!20},
+}
+
+\begin{document}
+
+\title{\includegraphics{frenetic-logo.png}\\Programmers Guide}
+
+\author{\Large Craig Riecke\\[3ex]
+\large with \\[3ex]
+%
+\large Others\\[1ex]
+}
+\date{\LARGE \ifdraft {\bf Draft of} \fi  \today}
+
+\maketitle
+
+\include{quick_start}
+\include{introduction_to_sdn}
+
+
+\end{document}
