@@ -1,0 +1,116 @@
+\chapter{Introduction to NetKAT}
+
+Software Defined Networking, or SDN, is a huge paradigm shift in the computing world.  
+Traditional networking involves 
+expensive, proprietary "boxes" from major vendors, plugging them in, configuring them, and hoping they 
+meet your needs.  
+If you want to do something special, like prevent certain kinds of devices from mobility, or configure 
+the spanning tree to prefer certain paths, you must often overbuy the box required or gerry-rig solutions in the middle.
+Upgrades tend to be the forklift-variety, since mixing and matching old and new hardware is a dicey proposition
+\ldots not to mention mixing hardware from different vendors.
+
+With SDN, network shops can step off the proprietary treadmill.  
+Similar to how the IBM PC architecture opened the field to multiple vendors, SDN opens network architecture 
+to multiple sizes and approaches.
+The term SDN means different things to different people:
+
+\begin{itemize}
+\item Switches can use the OpenFlow protocol for flexible, standardized packet manipulation and forwarding.  
+\item Network devices can use NETCONF for standardized provisioning, reconfiguration, and monitoring.
+\item Virtual machines can use NFV  to orchestrate network traffic between them.
+\end{itemize}
+
+Frenetic targets the OpenFlow side of SDN, creating an abstraction layer on top of OpenFlow switches. 
+It works with any devices that understand the OpenFlow 1.3 protocol -- 
+both devices and software switches like Open vSwitch.  
+So let's take a brief look at OpenFlow itself.
+
+\section{OpenFlow}
+
+Every network device from the lowliest repeater to the most compex router has two conceptual layers:
+
+\begin{description}
+\item[The control plane] make decisions about packets.
+It examines them, builds and consults tables, arranges packet modifications, and decides which ports to
+which the packet will be forwarded.
+The control plane of a router, for example, maintains routing tables from OSPF or BGP.
+\item[The data plane] performs the action on the packet. 
+\end{description}
+
+OpenFlow works with the control plane, essentially making it \textit{programmable}.  
+The programmable piece runs on any standard computer, and is collectively called the \textit{controller}.  
+
+DIAGRAM HERE
+
+The controller can be written in any language and run on any computer \ldots the only requirement is it must speak the
+OpenFlow protocol to the device.  
+You can think of these two pieces working in a tandem through an OpenFlow conversation:
+
+\begin{description}
+\item[Device:] I don't know what to do with this packet.  It came in port 3 from Ethernet mac address 10:23:10:59:12:fb:5c.
+\item[Controller:] OK.  I'll memorize it.  In the meantime, send it out all ports on the switch except port 3.  
+\item[Device:] I don't know what to do with this packet.  It's bound for Ethernet mac address 10:23:10:59:12:fb:5c.
+\item[Controller:]  Oh yeah.  I know that's on port 3.  Install a rule so all packets going to that mac address go out port 3.
+\item[Device:] OK!
+\item[Controller:] How many packets have went out port 3, by the way?
+\item[Device:] 82,120.
+\item[Device:] (To itself) I just saw a packet destined for Ethernet mac address 10:23:10:59:12:fb:5c, but I have a rule for dealing with it.  I'm gonna send it out port 3.  
+\end{description}
+
+OpenFlow boils down control plane functionality to a common core, and many of the decisions can be made there.
+Any complex decisions that can't be handled independently by the control plane can be offloaded to the controller.  
+In a well-designed Software Defined Network, the controller gets involved only when necessary.
+After all, the conversation between the device and the controller takes time, and anything that can 
+eliminate this conversation makes the packets go faster.
+
+So, central to the OpenFlow model is the \textit{flow table}.  
+Flow tables have \textit{entries}, sometimes called \textit{flow rules}, that are consulted for making decisions.
+A sample flow table might look like this:
+
+DIAGRAM HERE
+
+What's possible in a flow entry?
+There's a lot of flexibility here:
+
+\begin{description}
+\item[A match] specifies patterns of packet header and metadata values.
+OpenFlow 1.3 defines 40 different fields to match: some popular ones are the Input Port, 
+the Ethernet Destination mac address, and the TCP destination port.
+The match values can either be exact (like 10:23:10:59:12:fb:5c above) or wild carded (like 128.56.0.0/16 for a
+particular Ip subnet).
+\item[An instruction] tells what to do if the match occurs.  
+Instructions can apply actions (send a packet out a port, or write some header information, 
+or send a packet to the controller), 
+invoke groups (like a function call in a programming language), or set variables.
+\item[A priority] defines the order that matches are consulted.  
+When more than one entry matches a particular packet, the entry with the highest priority wins.
+\item[A cookie] is a primary key for an entry.
+The cookie value means nothing to the device, but the controller can use it to delete or modify entries later.
+\end{description}
+
+In our example above, the controller installed a flow entry matching Ethernet Destination 10:23:10:59:12:fb:5c, 
+and an instruction applying the action "Output it through Port 3".
+
+OpenFlow's flow table model is \textit{abstract}.
+An OpenFlow device is not necessarily going to find a RAM chip with the matches, 
+instructions and priorities \ldots although a pure software switch like Open vSwitch might mirror it quite closely.
+Instead, the controller asks the device to install entries, and the device accommodates it by placing entries in its
+own tables.
+For example, a real network device might have an L3 table that matches subnets with the various ports that have
+IP gateways.
+A programmer, knowing this table exists, can write instructions that match on those ports, and place it directly in the
+table accordingly.
+
+Suppose you wanted to write your own controller from scratch.  
+You could do that just by talking the OpenFlow protocol.
+Let's say you wrote this program in Node.js and placed it on the server "controller.example.com", 
+listening on TCP port 6653.
+Then you'd just point your OpenFlow network device at controller.example.com:6653.
+Then your program could install flow table entries into the network device over the OpenFlow protocol.
+
+Hmmm.
+Sounds pretty easy, but \ldots
+
+\section{OpenFlow Tables Are Difficult to Program}
+
+Writing flow table entries directly is like writing programs in assembly language.
