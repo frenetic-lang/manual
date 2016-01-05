@@ -4,40 +4,83 @@ Software Defined Networking, or SDN, is a huge paradigm shift in the computing w
 Traditional networking involves 
 expensive, proprietary "boxes" from major vendors, plugging them in, configuring them, and hoping they 
 meet your needs.  
-If you want to do something special, like prevent certain kinds of devices from mobility, or configure 
-the spanning tree to prefer certain paths, you must often overbuy the box required or gerry-rig solutions in the middle.
-Upgrades tend to be the forklift-variety, since mixing and matching old and new hardware is a dicey proposition
-\ldots not to mention mixing hardware from different vendors.
-
-With SDN, network shops can step off the proprietary treadmill.  
-Similar to how the IBM PC architecture opened the field to multiple vendors, SDN opens network architecture 
-to multiple sizes and approaches.
-The term SDN means different things to different people:
+But traditional networking suffers from these maladies:
 
 \begin{itemize}
-\item Switches can use the OpenFlow protocol for flexible, standardized packet manipulation and forwarding.  
-\item Network devices can use NETCONF for standardized provisioning, reconfiguration, and monitoring.
-\item Virtual machines can use NFV  to orchestrate network traffic between them.
+\item The devices are flexible only within narrow configuration parameters. 
+Special requirements, like preventing certain kinds of devices from mobility, or configuring 
+the spanning tree to prefer certain paths, are either impossible or expensive.
+\item While the devices are powered by software, there's no workable way to examine the underlying code or prove it's correct.  
+\item Upgrades tend to be the forklift-variety, since mixing and matching old and new hardware is a dicey proposition
+\ldots not to mention mixing hardware from different vendors.
+\item Configuration is not easily automated. 
+Solutions are often proprietary, require special programming languages, and are not interchangeable.
+Because of this, modern data center virtualization is more difficult.
+\item Adding support for new protocols is slow and expensive.
 \end{itemize}
 
-Frenetic targets the OpenFlow side of SDN, creating an abstraction layer on top of OpenFlow switches. 
-It works with any devices that understand the OpenFlow 1.3 protocol -- 
-both devices and software switches like Open vSwitch.  
+With SDN, data centers can step off the proprietary network treadmill.  
+Its a shift similar to the personal computer revolution of the 1980's.
+Before that, IBM and similar mainframes controlled the computer space, and required the same kinds of 
+forklift upgrades networks do.
+The IBM Personal Computer opened up the architecture to competitors, who could then design and build extensions
+that made it more useful.
+This created a snowball effect, with hardware extensions like the mouse and Ethernet cards opening the way 
+for new software like Microsoft Windows and the Netscape browser.
+
+SDN opens network devices in a similar manner, allowing them to be extended and manipulated in interesting,
+user-defined ways.
+Although the term SDN has been hijacked to mean many things, it most often refers to OpenFlow-enabled 
+network software and devices.
+OpenFlow is an open protocol defined by the Open Network Foundation that manipulates the control 
+plane of a network intermediary.  
+
+Frenetic is an OpenFlow controller, meaning it talks the OpenFlow protocol to network intermediaries.  
+In turn, it exposes an API that can be used to write network programs easily.
+It works with any network intermediary that understands the OpenFlow 1.0 protocol -- 
+both hardware devices like the HP 2920 and software ``devices'' like Open vSwitch.  
 So let's take a brief look at OpenFlow itself.
 
-\section{OpenFlow}
+\section{Introduction to OpenFlow}
 
-Every network device from the lowliest repeater to the most compex router has two conceptual layers:
+Every network device -- from the lowliest repeater, to firewalls and load balancers, all the way up to the most complex router -- has two conceptual layers:
 
 \begin{description}
-\item[The control plane] make decisions about packets.
-It examines them, builds and consults tables, arranges packet modifications, and decides which ports to
-which the packet will be forwarded.
-The control plane of a router, for example, maintains routing tables from OSPF or BGP.
-\item[The data plane] performs the action on the packet. 
+\item[The data plane] performs actions on packets.   
+It manipulates headers, copies packets to outgoing (or egress) ports, or drops packets.
+It consults control tables - MAC address tables, ARP caches, OSPF tables, etc. - to guide it.  
+\item[The control plane] manipulates the control tables themselves.
+People, in turn, may manipulate the control plane through configuration software.
+Or packets may do it: specialized ones like OSPF neighbor exchange, ARP requests, or just examining plain ol'
+packets themselves.
+But they never actually touch the packets.
 \end{description}
 
-OpenFlow works with the control plane, essentially making it \textit{programmable}.  
+This separation is only conceptual.
+You'd be hard pressed to open a network device, point to a chip and say, "That's the data plane."
+It helps in understanding a device, though, because they have different goals:
+
+\begin{description}
+\item[The data plane]'s job is to move data as quickly as possible.
+It relies more on fast table lookups than complex algorithms.
+\item[The control plane] works more flexibly, yet conservatively.
+Control tables should not change often, and when they do, appropriate checks and balances should be applied to
+ensure the data plane keeps working.  
+For example, the Spanning Tree Protocol (or STP) ensures packets are routed along the shortest path with no
+loops.  
+Calculating the spanning tree is the control plane's job, as its complex. 
+But once that's calculated, the data plane can use it to forward packets quickly.
+\end{description}
+
+A traditional network device looks like this. 
+The control plane is closed and contained fully within the box.
+
+\includegraphics{traditional_device_planes}
+
+The OpenFlow protocol makes the control plane \textit{programmable}.
+Rather than relying on the entire program being inside the box, you write a program that advises the control plane
+and runs outside the box.
+It's like an advisor that makes aribtrarily complex control table manipulations.  
 The programmable piece runs on any standard computer, and is collectively called the \textit{controller}.  
 
 DIAGRAM HERE
@@ -111,6 +154,13 @@ Then your program could install flow table entries into the network device over 
 Hmmm.
 Sounds pretty easy, but \ldots
 
-\section{OpenFlow Tables Are Difficult to Program}
+\section{OpenFlow is Difficult}
+
+\subsection{OpenFlow Tables Are Difficult to Program}
 
 Writing flow table entries directly is like writing programs in assembly language.
+
+\subsection{OpenFlow Tables Are Difficult to Compose}
+
+
+

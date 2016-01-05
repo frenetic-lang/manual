@@ -2,19 +2,15 @@
 
 In this book, you will use Frenetic to create a full-programmable network.  For the moment, let's assume you're familiar with Software Defined Networking and the OpenFlow protocol, and just dive right in.  (If you're not, don't worry!  We'll introduce some bedrock concepts in the next chapter and explain everything that happened here.)  
 
-\begin{quotation}
-{\it The ODL layer is not described in the Quick Start, as development is currently in progress.  }
-\end{quotation}
-
 \section{Installation}
 
-There are several ways to get started with Frenetic, but the easiest is to use Frenetic VM.  Frenetic itself only runs on Linux, but the Frenetic VM will run on any host system that supports VirtualBox, including Windows, Mac OS X and practically any version of Linux itself.   Keeping Frenetic it in its own VM will keep your own system clean and neat.  Later on, if you want to install Frenetic on a bare metal Ubuntu Linux server or network device, you can use the instructions in TODO.  
+There are several ways to get started with Frenetic, but the easiest is to use Frenetic VM.  Frenetic itself only runs on Linux, but the Frenetic VM will run on any host system that supports VirtualBox, including Windows, Mac OS X and practically any version of Linux itself.   Keeping Frenetic it in its own VM will keep your own system clean and neat.  Later on, if you want to install Frenetic on a bare metal Ubuntu Linux server or network device, you can use the instructions in \ref{productionalizing:install}.  
 
 \begin{itemize}
 \item Install VirtualBox from https://www.virtualbox.org/wiki/Downloads.  Use the latest version platform package appropriate for your system.  
 \item Install Vagrant at http://www.vagrantup.com/downloads.  Vagrant automates the process of building VM's from scratch, and Frenetic VM uses it to build its own environment.  This is more reliable than downloading a multi-gigabyte VM file.   
 \item Install Frenetic VM from https://github.com/frenetic-lang/frenetic-vm.  You can simply use the Download Zip button and unzip to an appropriate directory on your system, like frenetic-vm.  Then from a terminal or command prompt:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
  $ cd /path/to/frenetic-vm
  $ vagrant up
@@ -35,7 +31,6 @@ Writing a network application and throwing it into production is \ldots well, pr
 We'll use it throughout this book.  
 \item[Wireshark] captures and analyzes network traffic.  
 It's a great debugging tool, and very necessary for sifting through large amounts of data.
-\item[Open Daylight] or ODL, provides the immediate controller layer.  You can write network applications directly in its Java-based container, but it's much easier to write them in\ldots
 \item[Frenetic].  This layer provides an easy-to-use programmable layer on top of ODL.  Its main job is to shuttle OpenFlow messages between ODL and your application, and to translate the language NetKAT into OpenFlow flow tables.  We'll see the differences between the two as we go.
 \end{description}
 
@@ -44,13 +39,13 @@ Hmmm, that's a lot of software - what do {\it you} bring to the table?  You writ
 \section{An Attempt at Hello World}
 
 So let's dive right in.  We'll set up a Mininet network with one switch and two hosts.  First you should work from the directory where you installed Frenetic VM.
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
  $ cd /path/to/frenetic-vm
 \end{lstlisting}
  
 Then start up the VM:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
  $ vagrant up
  ringing machine 'default' up with 'virtualbox' provider...
@@ -73,13 +68,13 @@ Then start up the VM:
 ==> default: Mounting shared folders...
     default: /vagrant => /Users/cr396/frenetic-vm
     default: /home/vagrant/src => /Users/cr396/frenetic-vm/src
-==> default: Machine already provisioned. Run `vagrant provision` or use the `--provision`
-==> default: to force provisioning. Provisioners marked to run always will still run.
+==> default: Machine already provisioned. Run `vagrant provision` or...
+==> default: to force provisioning. Provisioners marked to run always...
 \end{lstlisting}
 
 Then log in to the VM.  At this point your command prompt will change to {\tt vagrant@frenetic} to distinguish it
 from your host machine.
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
  $ vagrant ssh
 Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.16.0-30-generic x86_64)
@@ -92,7 +87,7 @@ vagrant@frenetic:~$
 So you are now working inside an Ubuntu-based VM.  You don't really need to know Ubuntu, but just know that Mac OS and Windows commands won't necessarily work here.  
 
 Let's start up a Mininet network with one switch and two nodes.
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
 vagrant@frenetic:~$ sudo mn --topo=single,2 --controller=remote
 *** Creating network
@@ -119,7 +114,7 @@ The error message {\tt Unable to contact controller at 127.0.0.1:6633} looks a l
 
 You now have an experimental network with two hosts named h1 and h2.  
 To see if there's connectivity between them, use the command \lstinline{h1 ping h2} which means ``On host h1, ping the host h2.''
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
 mininet> h1 ping h2
 PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
@@ -134,7 +129,7 @@ pipe 3
 
 The ping gets executed over and over again, but it's clearly not working.  So we press CTRL-C to stop and 
 quit out of Mininet:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
 mininet> quit
 \end{lstlisting}
@@ -146,7 +141,7 @@ application}.    Frenetic will act as the controller on the network, and the net
 
 You write your network application in Python, using the Frenetic framework.  Mininet is currently running in our VM under its own terminal window, and we can leave it like that.   
 We'll do our programming in another window, so start up another one and log into our VM:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
  $ cd /path/to/frenetic-vm
  $ vagrant ssh
@@ -158,7 +153,7 @@ vagrant@frenetic:~$
 \end{lstlisting}
 
 Create a tutorial directory for your use:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
 vagrant@frenetic:~$ mkdir tutorial
 vagrant@frenetic:~$ cd tutorial
@@ -168,14 +163,14 @@ Now we'll write our first network application.
 You can use your favorite Unix text editor - vim and nano are already installed, or you can install your own favorite
 one with Ubuntu's {\it apt-get} commands. 
 Nano is a nice editor if your feeling indecisive:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
 vagrant@frenetic:~/tutorial$ nano repeater.py
 \end{lstlisting}
 
 Now type in the following network application:
-\\
-\begin{lstlisting}[style=BashInputStyle]
+
+\begin{lstlisting}
 # A simple repeater
 import sys
 sys.path.append('../src/frenetic/lang/python')
@@ -228,15 +223,16 @@ For now, we'll run them in three separate command lines, having typed \lstinline
 to login to the VM.
 
 In the first terminal window, we'll start up Frenetic:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
 vagrant@frenetic:~$ cd src/frenetic
-vagrant@frenetic:~src/frenetic$ ./frenetic.native http-controller --verbosity debug
+vagrant@frenetic:~src/frenetic$ ./frenetic.native http-controller \
+  > --verbosity debug
  [INFO] Calling create!
  [INFO] Current uid: 1000
  [INFO] Successfully launched OpenFlow controller with pid 3062
  [INFO] Connecting to first OpenFlow server socket
- [INFO] Failed to open socket to OpenFlow server: (Unix.Unix_error "Connection refused" connect 127.0.0.1:8984)
+ [INFO] Failed to open socket to OpenFlow server: (Unix.Unix_error...
  [INFO] Retrying in 1 second
  [INFO] Successfully connected to first OpenFlow server socket
  [INFO] Connecting to second OpenFlow server socket
@@ -244,7 +240,7 @@ vagrant@frenetic:~src/frenetic$ ./frenetic.native http-controller --verbosity de
 \end{lstlisting}
 
 In the second, we'll start up Mininet with the same configuration as before:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
 vagrant@frenetic:~$ sudo mn --topo=single,2 --controller=remote
 *** Creating network
@@ -252,7 +248,7 @@ vagrant@frenetic:~$ sudo mn --topo=single,2 --controller=remote
 \end{lstlisting}
 
 The following will appear in your Frenetic window to show a connection has been made:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
  [INFO] switch 1 connected
 [DEBUG] Setting up flow table
@@ -264,7 +260,7 @@ The following will appear in your Frenetic window to show a connection has been 
 \end{lstlisting}
 
 And in the third, we'll start our repeater application:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]vagrant@frenetic:~$ cd tutorial
 vagrant@frenetic:~/tutorial$ python repeater.py
 No client_id specified. Using d7650d3aebfc4bd9a708eef1382041ba
@@ -272,7 +268,7 @@ Starting the tornado event loop (does not return).
 \end{lstlisting}
 
 The following will appear in the Frenetic window.  
-\\
+
 \begin{lstlisting}[style=BashInputStyle]vagrant@frenetic:~$ cd tutorial
  [INFO] GET /version
  [INFO] POST /d7650d3aebfc4bd9a708eef1382041ba/update_json
@@ -289,9 +285,8 @@ drop | port := pipe(repeater_app) | port := pipe(repeater_app)
 \end{lstlisting}
 
 And finally, we'll pop over to the Mininet window and try our connection test once more:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
-vagrant@frenetic:~$ cd tutorial
 mininet> h1 ping h2
 PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
 64 bytes from 10.0.0.2: icmp_seq=1 ttl=64 time=149 ms
@@ -302,9 +297,8 @@ PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
 Ah, much better! 
 Our pings are getting through.  
 You can see evidence of this in the Frenetic window:
-\\
+
 \begin{lstlisting}[style=BashInputStyle]
-vagrant@frenetic:~$ cd tutorial
  [INFO] GET /d7650d3aebfc4bd9a708eef1382041ba/event
  [INFO] POST /pkt_out
 [DEBUG] SENDING PKT_OUT

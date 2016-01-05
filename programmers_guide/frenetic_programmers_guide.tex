@@ -6,16 +6,29 @@
 \usepackage{listings}
 \usepackage{graphicx}
 \usepackage{xcolor}
+\usepackage{fullpage}
 
-\lstset{language=Python, frame=lines, numbers=left, basicstyle=\ttfamily}
+\lstset{
+  language=Python, 
+  frame=lines, 
+  numbers=left, 
+  basicstyle=\small\ttfamily,
+  aboveskip=20pt,
+  belowskip=20pt
+}
 \lstdefinestyle{BashInputStyle}{ 
   language=bash, 
   basicstyle=\small\ttfamily,
-  numbers=left,
+  keywordstyle=\small\ttfamily,
   columns=fullflexible,
   keepspaces=true,
-  backgroundcolor=\color{yellow!20},
+  numbers=none,
+  moredelim=[l][\color{blue}]{\$},
+  moredelim=[l][\color{blue}]{>},
+  aboveskip=20pt,
+  belowskip=20pt
 }
+\graphicspath{ {./omnigraffle/} }
 
 \begin{document}
 
@@ -30,8 +43,22 @@
 
 \maketitle
 
+\tableofcontents{}
+
 \include{quick_start}
 \include{introduction_to_netkat}
+\include{l2_learning_switch}
+\include{proxy_arp}
+\include{handling_vlans}
+\include{gathering_statistics}
+\include{sdn_development_tools}
+\include{network_address_translation}
+\include{spanning_tree_alternatives}
+\include{routing}
+\include{modularization}
+\include{frenetic_rest_api}
+\include{netkat_reference}
+\include{productionalizing}
 
 
 \end{document}
