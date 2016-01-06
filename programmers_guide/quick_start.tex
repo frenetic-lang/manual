@@ -171,7 +171,6 @@ vagrant@frenetic:~/tutorial$ nano repeater.py
 Now type in the following network application:
 
 \begin{lstlisting}
-# A simple repeater
 import sys
 sys.path.append('../src/frenetic/lang/python')
 import frenetic
@@ -180,36 +179,32 @@ from frenetic.syntax import *
 class RepeaterApp(frenetic.App):
 
     def connected(self):
-        self.update( id >> Mod(Location(Pipe("repeater_app"))) )
+        self.update( id >> SendToController("repeater_app") )
 
     def packet_in(self, dpid, port_id, payload):
-        if port_id == 1:
-            out_port_id = 2
-        else:
-            out_port_id = 1
+        out_port = 2 if port_id = 1 else 1
         self.pkt_out(dpid, payload, [ Output(Physical(out_port_id)) ] )
 
 app = RepeaterApp()
 app.start_event_loop()
 \end{lstlisting}
 
-The first five lines are pretty much the same in every network application. 
-Then we declare an object class named RepeaterApp, whose base class is \lstinline{frenetic.App}.
-A frenetic application can hook code into many different points of the network event cycle.
-But the only two events we're interested in here are
+Lines 1-4 are pretty much the same in every Frenetic network application.
+Similarly, lines 15-16 are similar in most cases. 
+ The meat of the application is an object class named RepeaterApp, whose base class is \lstinline{frenetic.App}.
+A frenetic application can hook code into different points of the network event cycle.
+In our Repeater network app, the only two events we're interested in here are
 \lstinline{connected}, which is fired when a switch connects for the first time to Frenetic, and 
  \lstinline{packet_in}, which is fired every time a packet
 bound for a controller arrives.
-We'll see how this all works in the next chapter, but for now, just know that all network packets coming 
-into the switch get processed by our \lstinline{packet_in} procedure.
 
 The code in \lstinline{connected} merely directs the switch to send all packets to our application.
-The interesting code, though, is in \lstinline{packe_in} and implements a {\it repeater}.
+The interesting code is in \lstinline{packet_in} and implements a {\it repeater}.
 A repeater is the oldest type of network device, and is sometimes called a {\it hub}. 
 In a repeater, if a packet enters on port 1, it should get copied out to port 2.  
 Conversely, if a packet enters on port 2, it should get copied out to port 1.
-If there were more ports in our switch, the packet would get copied out to all other ports besides the port on which  it
-entered (called the {\it ingress port}).  
+If there were more ports in our switch, we'd write a more sophisticated repeater -- one that
+outputs the packet to all ports except the one on which it arrived (called the {\it ingress port}).  
 
 \lstinline{pkt_out} is a method provided by Frenetic to actually send the packet out the switch.  It takes three 
 parameters: a switch, a packet, and a policy.  
@@ -314,8 +309,10 @@ You can see evidence of this in the Frenetic window:
 
 You now have a working SDN, or Software Defined Network!   Like much software, it works in layers:
 
+\includegraphics{frenetic_architecture}
+
 \begin{enumerate}
-\item At the bottom is your switches and wires.  In our lab setup, Mininet is a substitute for this layer.
+\item At the bottom is your switches and wires.  In our lab setup, Mininet and OpenVSwitch is a substitute for this layer.
 \item In the middle is Frenetic.  It talks the OpenFlow protocol to the switches (or to Mininet) -- this is called the Southbound interface.  It also accepts its own language called NetKAT from network applications -- this is called the Northbound interface.
 \item At the very top is your network application, which you write in Python.  It defines how packets are dealt with.
 \end{enumerate}
@@ -328,4 +325,4 @@ Frenetic-vm makes installing and testing all the pieces straightforward.
 When you're done, your network application can be deployed to a real production network.
 
 Obviously you can do much more than just simple repeating with SDN!  
-We'll cover that next with some background on OpenFlow and NetKAT.  
+We'll cover that next with some background on OpenFlow and NetKAT, the underlying language of Frenetic. 

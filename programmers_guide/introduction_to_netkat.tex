@@ -162,5 +162,67 @@ Writing flow table entries directly is like writing programs in assembly languag
 
 \subsection{OpenFlow Tables Are Difficult to Compose}
 
+\section{NetKAT Makes Network Programming Easier}
 
+\section{Predicates}
+
+A NetKAT \textit{predicate} is a clause used to match packets.
+The base language is pretty straightforward:
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+SwitchEq($n$) & Matches packets that arrive on switch $n$, where $n$ is the Datapath ID of the switch.  
+\\ \hline
+PortEq($n$) & Matches packets that arrive on port $n$.  Generally ports are numbered 1-$m$, where $m$ is the
+number of interfaces, but they don't need to be consecutive.  
+\\ \hline
+EthSrcEq($mac$) & Matches packets whose Ethernet Mac source address is $mac$, which is a string in the standard form $nn:nn:nn:nn:nn:nn$ where the $n$'s are lowercase hexadecimal digits.
+\\ \hline
+EthDstEq($mac$) & Matches packets whose Ethernet Mac destination address is $mac$.
+\\ \hline
+VlanEq($vlan$) & Matches packets whose VLAN is $vlan$, and integer from 1-4096.  Packets without a VLAN are never matched by this predicate.
+\\ \hline
+VlanPcpEq($p$) & Matches packets whose VLAN Priority Code Point is $p$.  Packets without a VLAN are never matched by this predicate.
+\\ \hline
+EthTypeEq($t$) & Matches packets whose Ethernet Type is $t$, where t is a 32 bit integer.  Popular values of $t$ are 0x800 for IP and 0x806 for ARP.  
+\\ \hline
+IPProtoEq($p$) & Matches packets whose IP Protocol is $p$, a number from 0-255.  
+Popular values are 1 for ICMP, 6 for TCP and 17 for UDP.  
+This match only makes sense when EthTypeEq([0x800, 0x806]) (IP or ARP). 
+\\ \hline
+IPSrcEq($addr$, $mask$) & Matches packets whose IP source address is $addr$.  
+If $mask$ is provided, a number from 1-32, this matches all hosts on a network whose first $mask$ bits match the host.
+If it's omitted, the entire address is matched -- i.e. only one IP host.  
+This match only makes sense when EthTypeEq([0x800, 0x806]) (IP or ARP). 
+\\ \hline
+IPDstEq($addr$, $mask$) & Matches packets whose IP destination address is $addr$.  
+Follows same rules as IpSrcEq.
+\\ \hline
+TCPSrcPortEq($p$) & Matches packets whose TCP source port is $p$, an integer from 0-65535.
+\\ \hline
+TCPDstPortEq($p$) & Matches packets whose TCP destination port is $p$, an integer from 0-65535.
+Popular values are 80 for HTTP, 22 for SSH, and 443 for SSL.  
+\end{tabularx}
+
+If you're familiar with OpenFlow, this list should look familiar to you -- it's exactly the same list of fields you can 
+use in an OpenFlow flow table. 
+NetKAT, however, augments these matching rules with combination operators:
+
+\bigskip
+\begin{tabularx}{4in}{|c|X|}
+\hline\hline
+$p1$ \& $p2$ & Matches packets that satisfy $p1$ AND $p2$
+\\ \hline  
+And($p1$, $p2$, \ldots, $pn$) & Matches packets that satisfy all the predicates: $p1$ AND $p2$ AND \ldots AND $pn$
+\\ \hline  
+$p1$ TODO $p2$ & Matches packets that satisfy $p1$ OR $p2$
+\\ \hline  
+Or($p1$, $p2$, \ldots, $pn$) & Matches packets that satisfy one of the predicates: $p1$ OR $p2$ OR \ldots OR $pn$
+\end{tabularx}
+
+
+\section{Policies}
+
+\section{Events and Hooks}
 
