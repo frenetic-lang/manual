@@ -83,34 +83,56 @@ and runs outside the box.
 It's like an advisor that makes aribtrarily complex control table manipulations.  
 The programmable piece runs on any standard computer, and is collectively called the \textit{controller}.  
 
-DIAGRAM HERE
-
 The controller can be written in any language and run on any computer \ldots the only requirement is it must speak the
 OpenFlow protocol to the device.  
 You can think of these two pieces working in a tandem through an OpenFlow conversation:
 
 \begin{description}
-\item[Device:] I don't know what to do with this packet.  It came in port 3 from Ethernet mac address 10:23:10:59:12:fb:5c.
-\item[Controller:] OK.  I'll memorize it.  In the meantime, send it out all ports on the switch except port 3.  
-\item[Device:] I don't know what to do with this packet.  It's bound for Ethernet mac address 10:23:10:59:12:fb:5c.
-\item[Controller:]  Oh yeah.  I know that's on port 3.  Install a rule so all packets going to that mac address go out port 3.
+\item[Device:] I just got a packet, but I don't know what to do with it.
+It came in port 3 from Ethernet mac address 10:23:10:59:12:fb and it's going to mac address 5c:fb:12:59:10:23.
+\item[Controller:] OK.    
+I'll memorize that the 10:23:10:59:12:fb address is on port 3.
+But I don't know which port has a device with address 5c:fb:12:59:10:23.
+So just send it out all ports on the switch except port 3.  
+\item[Device:] OK. \ldots Ooops, here's another packet I don't know what to do with.  
+It came in port 5 from Ethernet mac address 5c:fb:12:59:10:23 and it's going to mac address 10:23:10:59:12:fb.
+\item[Controller:]  Oh yeah.  
+That looks like a reply.  
+I'll memorize that the 5c:fb:12:59:10:23 address is on port 5.
+Meanwhile, I know the destination is on port 3.  
+Install a rule so all packets going to that mac address go out port 3, then forward this packet out port 3 as well.  
 \item[Device:] OK!
 \item[Controller:] How many packets have went out port 3, by the way?
 \item[Device:] 82,120.
 \item[Device:] (To itself) I just saw a packet destined for Ethernet mac address 10:23:10:59:12:fb:5c, but I have a rule for dealing with it.  I'm gonna send it out port 3.  
 \end{description}
 
-OpenFlow boils down control plane functionality to a common core, and many of the decisions can be made there.
-Any complex decisions that can't be handled independently by the control plane can be offloaded to the controller.  
+OpenFlow boils down control plane functionality to a common core set of actions.
+A list of rules and actions that can be handled in the device itself are kept in a \textit{flow table}.
+Any complex decisions that can't be handled independently by the control plane may be offloaded to the controller.  
 In a well-designed Software Defined Network, the controller gets involved only when necessary.
 After all, the conversation between the device and the controller takes time, and anything that can 
 eliminate this conversation makes the packets go faster.
+So in the example above, a rule for any packets going to 10:23:10:59:12:fb:5c to be output on port 5 keeps all the processing on the switch, and out of the controller.  
+That makes it really fast.  
 
 So, central to the OpenFlow model is the \textit{flow table}.  
 Flow tables have \textit{entries}, sometimes called \textit{flow rules}, that are consulted for making decisions.
 A sample flow table might look like this:
 
-DIAGRAM HERE
+\bigskip
+\begin{tabularx}{6in}{|X|X|c|}
+\hline\hline
+Match & Actions & Priority
+\\ \hline
+dl\_src = 10:23:10:59:12:fb:5c, dl\_type = 0x806 & OFPAT\_OUTPUT(9) & 100 
+\\ \hline
+nw\_src = 128.56.0.0/16, dl\_type = 0x800 & OFPAT\_SET\_DL\_DST(5c:fb:12:59:10:23), OFPAT\_OUTPUT(1) & 90 
+\\ \hline
+Wildcard & OFPAT\_OUTPUT(Controller) & 1
+\end{tabularx}
+
+\bigskip
 
 What's possible in a flow entry?
 There's a lot of flexibility here:
@@ -121,14 +143,12 @@ OpenFlow 1.3 defines 40 different fields to match: some popular ones are the Inp
 the Ethernet Destination mac address, and the TCP destination port.
 The match values can either be exact (like 10:23:10:59:12:fb:5c above) or wild carded (like 128.56.0.0/16 for a
 particular Ip subnet).
-\item[An instruction] tells what to do if the match occurs.  
+\item[Actions] tell what to do if the match occurs.  
 Instructions can apply actions (send a packet out a port, or write some header information, 
 or send a packet to the controller), 
 invoke groups (like a function call in a programming language), or set variables.
 \item[A priority] defines the order that matches are consulted.  
 When more than one entry matches a particular packet, the entry with the highest priority wins.
-\item[A cookie] is a primary key for an entry.
-The cookie value means nothing to the device, but the controller can use it to delete or modify entries later.
 \end{description}
 
 In our example above, the controller installed a flow entry matching Ethernet Destination 10:23:10:59:12:fb:5c, 
@@ -172,57 +192,215 @@ The base language is pretty straightforward:
 \bigskip
 \begin{tabularx}{6in}{|c|X|}
 \hline\hline
-SwitchEq($n$) & Matches packets that arrive on switch $n$, where $n$ is the Datapath ID of the switch.  
+\tt{SwitchEq($n$)} & Matches packets that arrive on switch $n$, where $n$ is the Datapath ID of the switch.  
 \\ \hline
-PortEq($n$) & Matches packets that arrive on port $n$.  Generally ports are numbered 1-$m$, where $m$ is the
+\tt{PortEq($n$)} & Matches packets that arrive on port $n$.  Generally ports are numbered 1-$m$, where $m$ is the
 number of interfaces, but they don't need to be consecutive.  
 \\ \hline
-EthSrcEq($mac$) & Matches packets whose Ethernet Mac source address is $mac$, which is a string in the standard form $nn:nn:nn:nn:nn:nn$ where the $n$'s are lowercase hexadecimal digits.
+\tt{EthSrcEq($mac$)} & Matches packets whose Ethernet Mac source address is $mac$, which is a string in the standard form $nn:nn:nn:nn:nn:nn$ where the $n$'s are lowercase hexadecimal digits.
 \\ \hline
-EthDstEq($mac$) & Matches packets whose Ethernet Mac destination address is $mac$.
+\tt{EthDstEq($mac$)} & Matches packets whose Ethernet Mac destination address is $mac$.
 \\ \hline
-VlanEq($vlan$) & Matches packets whose VLAN is $vlan$, and integer from 1-4096.  Packets without a VLAN are never matched by this predicate.
+\tt{VlanEq($vlan$)} & Matches packets whose VLAN is $vlan$, and integer from 1-4096.  Packets without a VLAN are never matched by this predicate.
 \\ \hline
-VlanPcpEq($p$) & Matches packets whose VLAN Priority Code Point is $p$.  Packets without a VLAN are never matched by this predicate.
+\tt{VlanPcpEq($p$)} & Matches packets whose VLAN Priority Code Point is $p$.  Packets without a VLAN are never matched by this predicate.
 \\ \hline
-EthTypeEq($t$) & Matches packets whose Ethernet Type is $t$, where t is a 32 bit integer.  Popular values of $t$ are 0x800 for IP and 0x806 for ARP.  
+\tt{EthTypeEq($t$)} & Matches packets whose Ethernet Type is $t$, where t is a 32 bit integer.  Popular values of $t$ are 0x800 for IP and 0x806 for ARP.  
 \\ \hline
-IPProtoEq($p$) & Matches packets whose IP Protocol is $p$, a number from 0-255.  
+\tt{IPProtoEq($p$)} & Matches packets whose IP Protocol is $p$, a number from 0-255.  
 Popular values are 1 for ICMP, 6 for TCP and 17 for UDP.  
 This match only makes sense when EthTypeEq([0x800, 0x806]) (IP or ARP). 
 \\ \hline
-IPSrcEq($addr$, $mask$) & Matches packets whose IP source address is $addr$.  
+\tt{IPSrcEq($addr$, $mask$)} & Matches packets whose IP source address is $addr$.  
 If $mask$ is provided, a number from 1-32, this matches all hosts on a network whose first $mask$ bits match the host.
 If it's omitted, the entire address is matched -- i.e. only one IP host.  
 This match only makes sense when EthTypeEq([0x800, 0x806]) (IP or ARP). 
 \\ \hline
-IPDstEq($addr$, $mask$) & Matches packets whose IP destination address is $addr$.  
+\tt{IPDstEq($addr$, $mask$)} & Matches packets whose IP destination address is $addr$.  
 Follows same rules as IpSrcEq.
 \\ \hline
-TCPSrcPortEq($p$) & Matches packets whose TCP source port is $p$, an integer from 0-65535.
+\tt{TCPSrcPortEq($p$)} & Matches packets whose TCP source port is $p$, an integer from 0-65535.
 \\ \hline
-TCPDstPortEq($p$) & Matches packets whose TCP destination port is $p$, an integer from 0-65535.
+\tt{TCPDstPortEq($p$)} & Matches packets whose TCP destination port is $p$, an integer from 0-65535.
 Popular values are 80 for HTTP, 22 for SSH, and 443 for SSL.  
+\\ \hline\hline
 \end{tabularx}
-
-If you're familiar with OpenFlow, this list should look familiar to you -- it's exactly the same list of fields you can 
-use in an OpenFlow flow table. 
-NetKAT, however, augments these matching rules with combination operators:
 
 \bigskip
-\begin{tabularx}{4in}{|c|X|}
+If you're familiar with OpenFlow, this list should look familiar to you -- it's the same list of fields you can 
+use in an OpenFlow flow table.
+One special case is SwitchEq, matching a switch id, which we'll talk about in a second.  
+
+For each rule, OpenFlow allows only one kind of boolean operator: AND.  
+If the OpenFlow rule specifies match criteria $p1$, $p2$, \ldots, $pn$, the packet must match $p1$ AND $p2$
+AND \ldots AND $pn$.  
+NetKAT is much more expressive, allowing the following boolean operators between predicates:
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
 \hline\hline
-$p1$ \& $p2$ & Matches packets that satisfy $p1$ AND $p2$
+\tt{$p1$ \& $p2$} & Matches packets that satisfy $p1$ AND $p2$
 \\ \hline  
-And($p1$, $p2$, \ldots, $pn$) & Matches packets that satisfy all the predicates: $p1$ AND $p2$ AND \ldots AND $pn$
+\tt{And([$p1$, $p2$, \ldots, $pn$])} & 
+Matches packets that satisfy all the predicates: $p1$ AND $p2$ AND \ldots AND $pn$
 \\ \hline  
-$p1$ TODO $p2$ & Matches packets that satisfy $p1$ OR $p2$
+\tt{$p1$ $\vert$ $p2$} & Matches packets that satisfy $p1$ OR $p2$
 \\ \hline  
-Or($p1$, $p2$, \ldots, $pn$) & Matches packets that satisfy one of the predicates: $p1$ OR $p2$ OR \ldots OR $pn$
+\tt{Or([$p1$, $p2$, \ldots, $pn$])} & 
+Matches packets that satisfy one of the predicates: $p1$ OR $p2$ OR \ldots OR $pn$
+\\ \hline  
+\tt{\textasciitilde $p1$} & Matches packets that DO NOT satisfy $p1$
+\\ \hline  
+\tt{Not($p1$)} & Synonym for \tt{\textasciitilde $p1$}
+\\ \hline\hline
 \end{tabularx}
 
+\bigskip
+
+The precedence is the same as for most Boolean operators in normal programming languages: 
+\lstinline{Or}, then \lstinline{And}, then \lstinline{Not}.  
+TODO: Is that really true?
+
+A bunch of predicates, stitched together with Boolean operators, can be used wherever a simple predicate is used.
+Furthermore, predicates can be assigned to Python variables.
+So here are some examples in Python code:
+
+\begin{lstlisting}
+import sys
+sys.path.append('../src/frenetic/lang/python')
+import frenetic
+from frenetic.syntax import *
+
+# Note this program doesn't actually do anything
+
+# Match packets from a particular mac address
+src_match = EthSrc("10:23:10:59:12:fb:5c")
+
+# Match packets from a particular port that are either IP or ARP packets
+port_ip_arp_match = PortEq(9) & EthType([ 0x800, 0x806 ])
+
+# Matches packets from a particular port on switches 2 or 3 only
+port_switch_match = PortEq(8) & SwitchEq([2, 3])
+
+# Matches broadcast packets or packets from a particular port 
+# or packets with a particular Vlan
+all_criteria = [ EthSrc("ff:ff:ff:ff:ff:ff"), PortEq(1), VlanEq(2345) ] 
+brd_or_port_match = Or( all_criteria ) 
+
+\end{lstlisting}
+
+One predicate requires some explanation: \lstinline{SwitchEq}.  
+An OpenFlow flow table belongs to one and only one switch, but a NetKAT program belongs to every
+switch connected to that controller.  
+So a predicate tagged with \lstinline{SwitchEq} will limit a particular match to a particular switch.
+Any predicates that don't have a \lstinline{SwitchEq} predicate will apply to \textit{all} switches in the network.
+
+Finally, there are a few special predicates:
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\tt{id} & Matches all packets
+\\ \hline  
+\tt{drop)} & Match no packets
+\end{tabularx}
+
+Why would you need these?  
+They're useful for "catch all" rules that appear last in a list.
+A good example is our repeater, where we had an \lstinline{id} rule that matched all packets and
+forwarded them to the controller.
 
 \section{Policies}
 
-\section{Events and Hooks}
+NetKAT predicates are useless on their own.  
+To make them work, you need to combine them with \textit{policies}.
+A policy is like a command.  
+Often they are compiled down to OpenFlow actions, and in fact there's a lot of overlap between the two
+concepts.
+But just as NetKAT predicates are more powerful than OpenFlow matches, NetKAT policies are more
+powerful than OpenFlow action lists.
 
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\tt{Filter($p$)} & Select packets that match NetKAT predicate p, and quietly forget the rest  
+\\ \hline
+\tt{Send($n$)} & Send packet to port $n$.    
+\\ \hline
+\tt{SendToController($tag$)} & Send packet to controller with tag $tag$    
+\\ \hline
+\tt{SetEthSrc($mac$)} & Set Ethernet Mac source address to $mac$
+\\ \hline
+\tt{SetEthDst($mac$)} & Set Ethernet Mac destination address to $mac$.
+\\ \hline
+\tt{SetVlan($vlan$)} & Set packet VLAN to $vlan$.  Note this is not a Vlan push - it overwrites whatever 
+Vlan is in the packet (if there is one).  
+\\ \hline
+\tt{SetVlanPcp($p$)} & Set VLAN Priority Code Point to $p$.
+\\ \hline
+\tt{SetEthType($t$)} & Set Ethernet Type to $t$, where t is a 32 bit integer.
+\\ \hline
+\tt{SetIPProto($p$)} & Set IP Protocol to $p$.    
+This action is only done when EthTypeEq([0x800, 0x806]) (IP or ARP). 
+\\ \hline
+\tt{SetIPSrc($addr$)} & Set IP source address to $addr$.  Note there is no mask here, as in the equivalent predicate.  
+This action is only done when EthTypeEq([0x800, 0x806]) (IP or ARP). 
+\\ \hline
+\tt{SetIPDst($addr$)} & Set IP destination address to $addr$.  
+Follows same rules as SetIpSrc.
+\\ \hline
+\tt{SetTCPSrcPort($p$)} & Sets TCP source port to $p$.
+\\ \hline
+\tt{SetTCPDstPort($p$)} & Sets TCP destination port to $p$.  
+\\ \hline\hline
+\end{tabularx}
+\bigskip
+
+And just as you can combine predicates with Boolean operators, you can combine policies with NetKAT 
+policy operators.
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\tt{$pol1$ $\vert$ $pol2$} & Copy the packet and apply both $pol1$ and $pol2$ to it.   
+Also known as \textit{parallel composition}.
+\\ \hline  
+\tt{Union([$pol1$, $pol2$, \ldots, $poln$])} & 
+Copy the packet $n$ times and apply policy $pol[i]$ to copy $i$
+\\ \hline  
+\tt{$pol1$ >> $pol2$} & Apply the policy $pol1$ to the packet, then apply $pol2$ to it
+Also known as \textit{sequential composition}.
+\\ \hline  
+\tt{Seq([$pol1$, $pol2$, \ldots, $poln$])} & 
+Apply each of the policies $pol1$, $pol2$, \ldots, $poln$ to the packet, in order 
+\\ \hline  
+\tt{IfThenElse($p$, $pol1$, $pol2$)} & If packet matches predicate $p$, apply policy $pol1$, or else
+apply $pol2$.  Equivalent to \tt{Filter($p$) >> $pol1$ $\vert$ Filter(\textasciitilde$p$) >> $pol2$}
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+
+The >> should look familiar to C++ programmers. 
+Like in C++, the >> operator changes a piece of data, then forwards it to the next step in the chain, one
+after the other.
+It's especially helpful in I/O, where you build a string from pieces, then send it to the output device (file or screen) as the
+last step.
+The $\vert$ symbol is somewhat like the equivalent in UNIX shell programming: the components actually run in parallel.
+However, unlike $\vert$, in NetKAT you are actually running separate copies of each policy without any connections
+between them.
+In other words, you don't send packets from the output of one into the input of another.
+
+Some examples will clarify.
+
+\section{Commands and Hooks}
+
+Then we come to the last step.
+NetKAT predicates \textit{appear} to do things, but not by themselves.
+You must install them as policies on your switches.  
+You do this by calling an API, which sends a message to Frenetic, which compiles the NetKAT policies
+into Flow tables, then sends them to each switch.
+
+So here are the commands: packet_out, update
+
+And here are the hooks: packet_in, connected, switch_up, switch_down, port_up, port_down
