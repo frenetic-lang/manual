@@ -1,3 +1,5 @@
+% !TEX root = frenetic_programmers_guide.tex
+
 \chapter{Introduction to NetKAT}
 
 Software Defined Networking, or SDN, is a huge paradigm shift in the computing world.  
@@ -127,7 +129,7 @@ Match & Actions & Priority
 \\ \hline
 dl\_src = 10:23:10:59:12:fb:5c, dl\_type = 0x806 & OFPAT\_OUTPUT(9) & 100 
 \\ \hline
-nw\_src = 128.56.0.0/16, dl\_type = 0x800 & OFPAT\_SET\_DL\_DST(5c:fb:12:59:10:23), OFPAT\_OUTPUT(1) & 90 
+nw\_src = 128.56.0.0/16, dl\_type = 0x800 & OFPAT\_SET\_DL\_DST( 5c:fb:12:59:10:23 ), OFPAT\_OUTPUT(1) & 90 
 \\ \hline
 Wildcard & OFPAT\_OUTPUT(Controller) & 1
 \end{tabularx}
@@ -192,36 +194,36 @@ The base language is pretty straightforward:
 \bigskip
 \begin{tabularx}{6in}{|c|X|}
 \hline\hline
-\tt{SwitchEq($n$)} & Matches packets that arrive on switch $n$, where $n$ is the Datapath ID of the switch.  
+\texttt{SwitchEq($n$)} & Matches packets that arrive on switch $n$, where $n$ is the Datapath ID of the switch.  
 \\ \hline
-\tt{PortEq($n$)} & Matches packets that arrive on port $n$.  Generally ports are numbered 1-$m$, where $m$ is the
+\texttt{PortEq($n$)} & Matches packets that arrive on port $n$.  Generally ports are numbered 1-$m$, where $m$ is the
 number of interfaces, but they don't need to be consecutive.  
 \\ \hline
-\tt{EthSrcEq($mac$)} & Matches packets whose Ethernet Mac source address is $mac$, which is a string in the standard form $nn:nn:nn:nn:nn:nn$ where the $n$'s are lowercase hexadecimal digits.
+\texttt{EthSrcEq($mac$)} & Matches packets whose Ethernet Mac source address is $mac$, which is a string in the standard form $nn:nn:nn:nn:nn:nn$ where the $n$'s are lowercase hexadecimal digits.
 \\ \hline
-\tt{EthDstEq($mac$)} & Matches packets whose Ethernet Mac destination address is $mac$.
+\texttt{EthDstEq($mac$)} & Matches packets whose Ethernet Mac destination address is $mac$.
 \\ \hline
-\tt{VlanEq($vlan$)} & Matches packets whose VLAN is $vlan$, and integer from 1-4096.  Packets without a VLAN are never matched by this predicate.
+\texttt{VlanEq($vlan$)} & Matches packets whose VLAN is $vlan$, and integer from 1-4096.  Packets without a VLAN are never matched by this predicate.
 \\ \hline
-\tt{VlanPcpEq($p$)} & Matches packets whose VLAN Priority Code Point is $p$.  Packets without a VLAN are never matched by this predicate.
+\texttt{VlanPcpEq($p$)} & Matches packets whose VLAN Priority Code Point is $p$.  Packets without a VLAN are never matched by this predicate.
 \\ \hline
-\tt{EthTypeEq($t$)} & Matches packets whose Ethernet Type is $t$, where t is a 32 bit integer.  Popular values of $t$ are 0x800 for IP and 0x806 for ARP.  
+\texttt{EthTypeEq($t$)} & Matches packets whose Ethernet Type is $t$, where t is a 32 bit integer.  Popular values of $t$ are 0x800 for IP and 0x806 for ARP.  
 \\ \hline
-\tt{IPProtoEq($p$)} & Matches packets whose IP Protocol is $p$, a number from 0-255.  
+\texttt{IPProtoEq($p$)} & Matches packets whose IP Protocol is $p$, a number from 0-255.  
 Popular values are 1 for ICMP, 6 for TCP and 17 for UDP.  
 This match only makes sense when EthTypeEq([0x800, 0x806]) (IP or ARP). 
 \\ \hline
-\tt{IPSrcEq($addr$, $mask$)} & Matches packets whose IP source address is $addr$.  
+\texttt{IPSrcEq($addr$, $mask$)} & Matches packets whose IP source address is $addr$.  
 If $mask$ is provided, a number from 1-32, this matches all hosts on a network whose first $mask$ bits match the host.
 If it's omitted, the entire address is matched -- i.e. only one IP host.  
 This match only makes sense when EthTypeEq([0x800, 0x806]) (IP or ARP). 
 \\ \hline
-\tt{IPDstEq($addr$, $mask$)} & Matches packets whose IP destination address is $addr$.  
+\texttt{IPDstEq($addr$, $mask$)} & Matches packets whose IP destination address is $addr$.  
 Follows same rules as IpSrcEq.
 \\ \hline
-\tt{TCPSrcPortEq($p$)} & Matches packets whose TCP source port is $p$, an integer from 0-65535.
+\texttt{TCPSrcPortEq($p$)} & Matches packets whose TCP source port is $p$, an integer from 0-65535.
 \\ \hline
-\tt{TCPDstPortEq($p$)} & Matches packets whose TCP destination port is $p$, an integer from 0-65535.
+\texttt{TCPDstPortEq($p$)} & Matches packets whose TCP destination port is $p$, an integer from 0-65535.
 Popular values are 80 for HTTP, 22 for SSH, and 443 for SSL.  
 \\ \hline\hline
 \end{tabularx}
@@ -239,19 +241,19 @@ NetKAT is much more expressive, allowing the following boolean operators between
 \bigskip
 \begin{tabularx}{6in}{|c|X|}
 \hline\hline
-\tt{$p1$ \& $p2$} & Matches packets that satisfy $p1$ AND $p2$
+\texttt{$p1$ \& $p2$} & Matches packets that satisfy $p1$ AND $p2$
 \\ \hline  
-\tt{And([$p1$, $p2$, \ldots, $pn$])} & 
+\texttt{And([$p1$, $p2$, \ldots, $pn$])} & 
 Matches packets that satisfy all the predicates: $p1$ AND $p2$ AND \ldots AND $pn$
 \\ \hline  
-\tt{$p1$ $\vert$ $p2$} & Matches packets that satisfy $p1$ OR $p2$
+\texttt{$p1$ $\vert$ $p2$} & Matches packets that satisfy $p1$ OR $p2$
 \\ \hline  
-\tt{Or([$p1$, $p2$, \ldots, $pn$])} & 
+\texttt{Or([$p1$, $p2$, \ldots, $pn$])} & 
 Matches packets that satisfy one of the predicates: $p1$ OR $p2$ OR \ldots OR $pn$
 \\ \hline  
-\tt{\textasciitilde $p1$} & Matches packets that DO NOT satisfy $p1$
+\texttt{\textasciitilde $p1$} & Matches packets that DO NOT satisfy $p1$
 \\ \hline  
-\tt{Not($p1$)} & Synonym for \tt{\textasciitilde $p1$}
+\texttt{Not($p1$)} & Synonym for \texttt{\textasciitilde $p1$}
 \\ \hline\hline
 \end{tabularx}
 
@@ -300,20 +302,22 @@ Finally, there are a few special predicates:
 \bigskip
 \begin{tabularx}{6in}{|c|X|}
 \hline\hline
-\tt{id} & Matches all packets
+\texttt{id} & Matches all packets
 \\ \hline  
-\tt{drop)} & Match no packets
+\texttt{drop} & Match no packets
+\\ \hline\hline
 \end{tabularx}
+\bigskip
 
 Why would you need these?  
 They're useful for "catch all" rules that appear last in a list.
-A good example is our repeater, where we had an \lstinline{id} rule that matched all packets and
+A good example is our repeater, where we had an id rule that matched all packets and
 forwarded them to the controller.
 
 \section{Policies}
 
-NetKAT predicates are useless on their own.  
-To make them work, you need to combine them with \textit{policies}.
+NetKAT predicates are useless by themselves.  
+To make them work, you need to form them into NetKAT \textit{policies}.
 A policy is like a command.  
 Often they are compiled down to OpenFlow actions, and in fact there's a lot of overlap between the two
 concepts.
@@ -323,66 +327,79 @@ powerful than OpenFlow action lists.
 \bigskip
 \begin{tabularx}{6in}{|c|X|}
 \hline\hline
-\tt{Filter($p$)} & Select packets that match NetKAT predicate p, and quietly forget the rest  
+\texttt{Filter($p$)} & Select packets that match NetKAT predicate p, and quietly forget the rest  
 \\ \hline
-\tt{Send($n$)} & Send packet to port $n$.    
+\texttt{Send($n$)} & Send packet to port $n$.    
 \\ \hline
-\tt{SendToController($tag$)} & Send packet to controller with tag $tag$    
+\texttt{SendToController($tag$)} & Send packet to controller with tag $tag$    
 \\ \hline
-\tt{SetEthSrc($mac$)} & Set Ethernet Mac source address to $mac$
+\texttt{SetEthSrc($mac$)} & Set Ethernet Mac source address to $mac$
 \\ \hline
-\tt{SetEthDst($mac$)} & Set Ethernet Mac destination address to $mac$.
+\texttt{SetEthDst($mac$)} & Set Ethernet Mac destination address to $mac$.
 \\ \hline
-\tt{SetVlan($vlan$)} & Set packet VLAN to $vlan$.  Note this is not a Vlan push - it overwrites whatever 
+\texttt{SetVlan($vlan$)} & Set packet VLAN to $vlan$.  Note this is not a Vlan push - it overwrites whatever 
 Vlan is in the packet (if there is one).  
 \\ \hline
-\tt{SetVlanPcp($p$)} & Set VLAN Priority Code Point to $p$.
+\texttt{SetVlanPcp($p$)} & Set VLAN Priority Code Point to $p$.
 \\ \hline
-\tt{SetEthType($t$)} & Set Ethernet Type to $t$, where t is a 32 bit integer.
+\texttt{SetEthType($t$)} & Set Ethernet Type to $t$, where t is a 32 bit integer.
 \\ \hline
-\tt{SetIPProto($p$)} & Set IP Protocol to $p$.    
+\texttt{SetIPProto($p$)} & Set IP Protocol to $p$.    
 This action is only done when EthTypeEq([0x800, 0x806]) (IP or ARP). 
 \\ \hline
-\tt{SetIPSrc($addr$)} & Set IP source address to $addr$.  Note there is no mask here, as in the equivalent predicate.  
+\texttt{SetIPSrc($addr$)} & Set IP source address to $addr$.  Note there is no mask here, as in the equivalent predicate.  
 This action is only done when EthTypeEq([0x800, 0x806]) (IP or ARP). 
 \\ \hline
-\tt{SetIPDst($addr$)} & Set IP destination address to $addr$.  
+\texttt{SetIPDst($addr$)} & Set IP destination address to $addr$.  
 Follows same rules as SetIpSrc.
 \\ \hline
-\tt{SetTCPSrcPort($p$)} & Sets TCP source port to $p$.
+\texttt{SetTCPSrcPort($p$)} & Sets TCP source port to $p$.
 \\ \hline
-\tt{SetTCPDstPort($p$)} & Sets TCP destination port to $p$.  
+\texttt{SetTCPDstPort($p$)} & Sets TCP destination port to $p$.  
 \\ \hline\hline
 \end{tabularx}
 \bigskip
 
+Note that \texttt{Set} policies mirror each Eq predicate, so for example the predicate \texttt{VlanEq($vlan$)} has a matching
+\texttt{SetVlan($vlan$)}.
+The exceptions are \texttt{Switch} and \texttt{Port}.  
+These fields are not physical fields in a packet header - rather, they are metadata that OpenFlow fills in ``invisibly''
+in a packet.
+So you can't set them to a particular value, like you can other header fields.
+To send a packet out a particular switch port, you use the \texttt{Send} policy instead.  
+To send a packet to a different switch, you also use \texttt{Send}, but you are restricted to switches that are directly
+connected to the current switch, and you must know out which port to send it (e.g. you must know the topology).
+We'll cover strategies for dealing with this in \ref{spanning_tree}.
+ 
 And just as you can combine predicates with Boolean operators, you can combine policies with NetKAT 
-policy operators.
+policy operators:
 
 \bigskip
 \begin{tabularx}{6in}{|c|X|}
 \hline\hline
-\tt{$pol1$ $\vert$ $pol2$} & Copy the packet and apply both $pol1$ and $pol2$ to it.   
+\texttt{$pol1$ $\vert$ $pol2$} & Copy the packet and apply both $pol1$ and $pol2$ to it.   
 Also known as \textit{parallel composition}.
 \\ \hline  
-\tt{Union([$pol1$, $pol2$, \ldots, $poln$])} & 
+\texttt{Union([$pol1$, $pol2$, \ldots, $poln$])} & 
 Copy the packet $n$ times and apply policy $pol[i]$ to copy $i$
 \\ \hline  
-\tt{$pol1$ >> $pol2$} & Apply the policy $pol1$ to the packet, then apply $pol2$ to it
+\texttt{$pol1$ >> $pol2$} & Apply the policy $pol1$ to the packet, then apply $pol2$ to it
 Also known as \textit{sequential composition}.
 \\ \hline  
-\tt{Seq([$pol1$, $pol2$, \ldots, $poln$])} & 
+\texttt{Seq([$pol1$, $pol2$, \ldots, $poln$])} & 
 Apply each of the policies $pol1$, $pol2$, \ldots, $poln$ to the packet, in order 
 \\ \hline  
-\tt{IfThenElse($p$, $pol1$, $pol2$)} & If packet matches predicate $p$, apply policy $pol1$, or else
-apply $pol2$.  Equivalent to \tt{Filter($p$) >> $pol1$ $\vert$ Filter(\textasciitilde$p$) >> $pol2$}
+\texttt{IfThenElse($p$, $pol1$, $pol2$)} & If packet matches predicate $p$, then apply policy $pol1$, or else
+apply $pol2$.  
+Either $pol1$ or $pol2$ is applied, but never both.
+Equivalent to \texttt{Filter($p$) >> $pol1$ $\vert$ Filter(\textasciitilde$p$) >> $pol2$}
 \\ \hline\hline
 \end{tabularx}
 
 \bigskip
 
-The >> should look familiar to C++ programmers. 
-Like in C++, the >> operator changes a piece of data, then forwards it to the next step in the chain, one
+The \texttt{>>} should look familiar to C++ programmers. 
+Like in C++, the \texttt{>>} operator changes a piece of data, then forwards it to the next step in the chain, one
 after the other.
 It's especially helpful in I/O, where you build a string from pieces, then send it to the output device (file or screen) as the
 last step.
@@ -395,12 +412,398 @@ Some examples will clarify.
 
 \section{Commands and Hooks}
 
-Then we come to the last step.
-NetKAT predicates \textit{appear} to do things, but not by themselves.
-You must install them as policies on your switches.  
-You do this by calling an API, which sends a message to Frenetic, which compiles the NetKAT policies
-into Flow tables, then sends them to each switch.
+The truth is, just like NetKAT predicates, NetKAT policies don't do anything by themselves.
+And so we come to the last level of a net app: commands and hooks.
+Commands are instructions from the net app to the switches (via Frenetic).  
+OpenFlow calls these \emph{controller-to-switch messages}.  
+Hooks are instructions from the switches to the net app (again, via Frenetic), and OpenFlow
+calls these \emph{switch-to-controller messages.}
 
-So here are the commands: packet_out, update
+The commands are:
 
-And here are the hooks: packet_in, connected, switch_up, switch_down, port_up, port_down
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{pkt\_out($sw$, $payload$,} & Send a packet out switch with DPID $sw$.  
+\\
+\texttt{$plist$, $inport$)} & We'll describe this in detail below.
+\\ \hline  
+\texttt{update($policy$)} & 
+Update all switches with the given NetKAT policy.
+This is the equivalent of setting the OpenFlow flow tables all in one shot.  
+\\ \hline  
+\texttt{port\_stats($sw$, $port$)} & Get statistics for a particular switch and port. 
+\\ \hline  
+\texttt{query($label$)} & Get user-defined statistics associated with a particular label. 
+We'll cover this in TODO.
+\\ \hline  
+\texttt{current\_switches()} & Gets a list of DPID's of all current, operating switches, and the operating
+ports for each.  
+This is most useful in the \texttt{connected()} hook.  
+\\ \hline  
+\texttt{config($compiler\_options$)} & Set Frenetic compiler options.  
+This is an instruction to Frenetic, not the switch. 
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+You call commands in your net app through plain ol' Python method calls, e.g. \texttt{self.update($policy$)}.  
+
+The hooks are:
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{connected()} & Called when Frenetic has finished startup and some (perhaps not all) 
+switches have connected to it. 
+\\ \hline
+\texttt{packet\_in($sw$, $port$, $payload$)} & 
+ A packet has arrived on DPID $sw$, port $port$ and either the matching Policy had a SendToController policy, or
+ the packet matched no rules and the TableMiss rule forwards TableMiss packets to the controller.
+ This is described in detail below.
+\\ \hline  
+\texttt{switch\_up($sw$)} & Called when a switch has been initialized and is ready for commands.  
+Some switches send this message once every 5 minutes or some user-defined interval, and it doesn't necessarily
+mean it was down before this.
+\\ \hline  
+\texttt{switch\_down($sw$)} & Called when a switch has been powered-down gracefully.
+TODO: What about ungracefully?
+\\ \hline  
+\texttt{port\_up($sw$, $port$)} & Called when a port has been activated.
+\\ \hline  
+\texttt{port\_down($sw$, $port$)} & Called when a port has been de-activated - most of the time, that means the link
+status is down, the network cord has been unplugged, or the host connected to that port has been powered-off.
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+Your net app may be interested in one or more of these hooks.
+To add code to it, you write a \emph{handler} which implements the hook's signature.
+Following Python conventions, it must be named exactly the same as the hook.
+However, you don't need to provide handlers for every hook.
+If you don't provide one, Frenetic uses its own default handler -- in the case of \texttt{connected()}, for example, it
+merely logs a message to the console.  
+
+We'll see most of these commands and hooks used in the next few chapters.  
+But since \texttt{pkt\_out()} and \texttt{packet\_in()} are crucial to net apps, we'll describe them first here.
+
+\subsection{The packet\_in Hook}
+
+\texttt{packet\_in()} is used to inspect network packets.  
+Note that \emph{not all packets} coming in through all switches 
+arrive here -- indeed, if they did, your controller would be
+horribly slow (as our Repeater example is, but we'll see how to improve it in a bit.)
+Packets arrive here in one of two ways:
+
+\begin{itemize}
+\item It may match an OpenFlow rule with the action \texttt{OFPAT\_OUTPUT(OFPP\_CONTROLLER)}
+also known in NetKAT as \texttt{SendToController}.
+\item It may not match any OpenFlow rule.  
+In OpenFlow 1.0, the default action is to send the packet to the controller.
+In OpenFlow 1.3, the default action is to drop the packet, but it can be configured to send it to the controller 
+instead.  
+\end{itemize}
+
+Once at the controller, Frenetic will deliver the packet to \texttt{packet\_in()}. 
+The default handler will simply log a message and drop the packet, but of course that's not very interesting.
+
+The handler is called with three parameters:
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{sw} & The DPID of the switch where the packet arrived.
+\\ \hline
+\texttt{port} & The port number of the port where the packet arrived.
+\\ \hline
+\texttt{payload} & The raw packet data.
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+There are two formats for the packet data: \emph{buffered} or \emph{unbuffered}.
+Most switches will only send unbuffered data, meaning the entire network packet - header and data - will be 
+transferred to the controller.
+Unbuffered data can be held at the controller, changed and resent, dropped, multiplied into many different packets, or 
+any arbitrary action without penalty.  
+
+Buffered data, on the other hand, exchanges flexibility for some efficiency.
+Only a subset of buffered packet data is sent to the controller - the amount is configurable, but defaults to 128 bytes which is usually enough for the Ethernet and IP headers.  
+If packets are large, or the channel between the switch and controller is slow, this can save much precious time.
+The buffered packet will wait at the switch until it either gets changed and sent (through \texttt{pkt\_out} in 
+the case of Frenetic), or explicitly dropped, or dropped due to timeout.  
+
+Although buffering data sounds like a good idea, it requires greater care on the net apps part to prevent
+duplicate packets, race conditions, and so on.
+It's also possible that truncated packets become unparseable - for example, if they get cut off in the middle of
+the IP header.
+Because of this, very few OpenFlow switches support buffering at all.  
+If capacity is an issue, it's better to send as few packets to the controller as possible.
+A judicious use of NetKAT policies in the flow table will ensure this.  
+
+If you don't need to examine any packet data, you can simply drop $packet$, or pass it directly to \texttt{pkt\_out},
+as we did in our Repeater app:
+
+\begin{lstlisting}
+...
+class RepeaterApp(frenetic.App):
+
+...
+    def packet_in(self, dpid, port_id, payload):
+        out_port = 2 if port_id = 1 else 1
+        self.pkt_out(dpid, payload, [ Send(out_port_id) ] )
+
+...
+\end{lstlisting}
+
+Here, we merely send the payload out unchanged.  
+If it came in as buffered data, it will be sent out as buffered data.
+If it came in unbuffered, it will be sent out unbuffered.  
+Pretty simple.
+And in the cases where all you want to decide in the controller which ports to send out a packet, this
+is all the infrastructure you need.
+
+If you need to examine the payload, you'll need some assistance.
+The payload is the raw network packet data, not parsed or translated at all.
+So for the Ethernet Source address, for example, you'd need to examine bytes 14 through 19 
+(byte ordering starts at 0).  
+Working at this low-level is exceedingly error prone.
+
+So Frenetic leverages the RYU Packet library.
+RYU is an open source project spearheaded by NTT (Nippon Telephone and Telegraph) and its Python packet
+parsing library is very solid and complete.
+
+Frenetic provides a simple API on top of RYU Packet.
+
+\begin{lstlisting}
+# You must import the proper protocol from the RYU packet library to use it
+from ryu.lib.packet import ethernet, arp
+...
+    def packet_in(self, dpid, port_id, payload):
+        ethernet_packet = self.packet(payload, 'ethernet')
+        src_mac = ethernet_packet.src
+        if ethernet_packet.ethertype = 0x806:
+          arp_packet = self.packet(payload, 'arp')
+          src_ip = arp_packet.src_ip
+
+...
+\end{lstlisting}
+
+\texttt{p = packet($payload$, $protocol$)} turns the raw $payload$ into a parsed packet of type $protocol$.  
+From there, the fields of $p$ are the parsed values of that protocol.  
+You can think of $p$ as a view into $payload$ with the $protocol$ lens attached.  
+In the example above, for example, $payload$ is both an Ethernet packet and an ARP packet, and the 
+variables $ethernet_packet$ and $arp_packet$ provide respective views into it.   
+If $payload$ is not parseable into that protocol, \texttt{None} is returned.  
+
+A complete reference for RYU packets is available at 
+http://ryu-zhdoc.readthedocs.org/en/latest/library\_packet\_ref.html, 
+The following is a list of the most popular protocols and fields:
+
+\subsubsection{ethernet}
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{dst} & Destination mac address string, formatted as "08:60:6e:7f:74:e7" 
+\\ \hline
+\texttt{src} & Source mac address string 
+\\ \hline
+\texttt{ethertype} & Ethernet frame type.  
+Popular values are 0x800 for IP version 4, or 0x806 for ARP.  
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+Constructor: \texttt{ethernet.ethernet(dst, src, ethertype)}
+
+\subsubsection{vlan}
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{vid} & VLAN id 
+\\ \hline
+\texttt{pcp} & Priority Code Point 
+\\ \hline
+\texttt{ethertype} & Ethernet frame type.  
+The outer Ethernet packet has ethertype 0x8100, so this is the ethertype of the packet's data.
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+Constructor: \texttt{ethernet.vlan(pcp, vid, ethertype)}
+
+\subsubsection{ipv4}
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{proto} & The IP version 4 protocol.  
+Popular values are  6 for TCP and 17 for UDP.
+\\ \hline
+\texttt{src} & Source address, a 32 bit integer 
+\\ \hline
+\texttt{dst} & Destination address, a 32 bit integer
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+Constructor: \texttt{ipv4.ipv4(proto, src, dst)}
+
+\subsubsection{arp}
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{opcode} & Popular values are \texttt{arp.ARP\_REQUEST} and \texttt{arp.ARP\_REPLY}.  
+\\ \hline
+\texttt{src\_mac} & Source mac address string, formatted as "08:60:6e:7f:74:e7"  
+\\ \hline
+\texttt{src\_ip} & Source IP address, a 32 bit integer  
+\\ \hline
+\texttt{dst\_mac} & Destination mac address string  
+\\ \hline
+\texttt{dst\_ip} & Destination IP address  
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+Constructor: \texttt{arp.arp\_ip(opcode, src\_mac, src\_ip, dst\_mac, dst\_ip)}
+
+\subsection{The pkt\_out Command}
+
+\texttt{pkt\_out} is used to send out packets from the switch.  
+Most of the time, the packets you send are packets you received through \texttt{packet\_in}.
+But there's nothing stopping from you sending arbitrarily-constructed packets from here as well.  
+
+The command takes the following parameters:
+
+\bigskip
+\begin{tabularx}{6in}{|c|X|}
+\hline\hline
+\texttt{sw} & The DPID of the switch from where the packet should be sent.
+\\ \hline
+\texttt{payload} & The raw packet data, wrapped in a 
+Buffered or Unbuffered object type.
+\\ \hline
+\texttt{policy\_list} & Python list of NetKAT policies to apply to the packet data.
+\\ \hline
+\texttt{in\_port} & Port ID from which to send it.
+This parameter is optional, and only applies to buffered packets presumably sitting at a particular port on
+the switch waiting to be released.
+\\ \hline\hline
+\end{tabularx}
+
+\bigskip
+
+The $policy\_list$ effectively tells the switch how to act on the packet.  
+All simple NetKAT policies are usable here, including:
+
+\begin{itemize}
+  \item \texttt{Send} which sends the packet out a particular port.  You can use more than one of these to copy
+  a packet out many different ports at once.  
+  \item Set policies like \texttt{SetEthDst} or \texttt{SetVlan}
+\end{itemize}
+
+You cannot use the \texttt{Filter} policy, which doesn't make sense as an action anyway
+once you've constructed the output packet
+And though you can use the \texttt{SendToController} policy, it makes little sense to do so since you are
+in the controller with the constructed packet.  
+
+The policies must be simple, so you can't use policy operators like \texttt{Union}, \texttt{Seq} 
+and \texttt{IfThenElse}.  
+Instead, you can send multiple policies in a list, where there's an implied \texttt{Seq} operator between them \ldots 
+of sorts.
+Unlike \texttt{Seq}, as per the OpenFlow spec, modification actions are always performed before Send actions.
+This makes sense -- you'll want to modify the packet before sending it on its way, not after.  
+
+What if you want to modify a packet before sending it out?  
+There are actually two ways to do it, each appropriate for a particular use case:
+
+\begin{description}
+  \item[Direct Modification] where you set particular data in the packet itself, reserialize it through RYU's packet
+  library API, and send it in $payload$.  
+  This is the only way to modify data that's not accessible to a NetKAT policy - e.g. the IPv4 source address is
+  settable by NetKAT policy \texttt{SetIPv4}, but there's no equivalent policy for the ARP opcode.  
+  Direct modification is only available for unbuffered packets.
+  \item[Policy Modification] is achieved through the Policy list, and is limited to modification through NetKAT
+  policies.
+  It can be done on buffered or unbuffered packets.
+\end{description}
+
+In general, Policy Modification is preferable since it works on all packets, and saves you the costly step of parsing and 
+reserializing the packet in the controller.
+For example, a common routing function is to change the destination MAC address for a next hop router.
+Here's an example of doing this with Policy Modification:
+
+\begin{lstlisting}
+...
+    def packet_in(self, dpid, port_id, payload):
+        (next_hop_mac, next_port) = calculate_next_hop(payload)
+        self.pkt_out(dpid, new_payload, [ SetEthDst(next_hop_mac), Send(next_port) ])	
+...
+\end{lstlisting}
+
+
+
+For those times when you need Direct Modification, here's an example of how to do it:
+
+\begin{lstlisting}
+from ryu.lib.packet import ethernet, arp
+...
+    def packet_in(self, dpid, port_id, payload):
+        (ethernet_packet, arp_packet) = self.packet(payload, ['ethernet', 'arp'])
+        # Flip a request into a reply and vice versa
+        arp_packet.opcode =  \ 
+          arp.ARP_REPLY if arp_packet.opcode == arp.ARP_REQUEST \
+          else arp.ARP_REPLY
+	# Reserialize it back into a raw packet
+        new_payload = self.payload(ethernet_packet, arp_packet)
+        self.pkt_out(dpid, new_payload, [ Send(1) ])	
+...
+\end{lstlisting}
+
+You can also create packets from scratch with a variation of Direct Modification.  
+First create the packet views with standard RYU Packet library constructors.
+Then just call \texttt{self.payload()} on them to create the raw packet and send it.  
+
+\begin{lstlisting}
+from ryu.lib.packet import ethernet, arp
+...
+    def send_arp_reply(port, src_mac, dst_mac, src_ip, dst_ip):
+        # Immediately send an ARP reply when a port comes up.
+        e = ethernet.ethernet(dst = dst_mac , src = src_mac, ethertype=0x806)
+        a = arp.arp_ip(arp.ARP_REPLY, src_mac, src_ip, dst_mac, dst_ip)
+	# Serialize it into a raw packet
+        new_payload = self.payload(ethernet_packet, arp_packet)
+        self.pkt_out(dpid, new_payload, [ Send(port) ])	
+...
+\end{lstlisting}
+
+\subsection{Buffering}
+
+TODO: Explain this with pictures.
+When you receive a buffered packet in, you can only do Policy Modifcations on it and send it
+to the switch.
+In the background, the buffer id is sent with the packet in and re-output on the packet out.  
+It must be sent back to the port it arrived on, since each port has a different buffer.
+If the response comes too late, the packet will be unceremoniously dropped.  
+
+\section{Back to the Repeater}
+
+In a nutshell, the \texttt{packet\_in()} hook receives network packets and the \texttt{pkt\_out()} command sends
+network packets.  
+In theory, you could use these two to implement arbitrarily-complex network clients and servers.  
+You could build switches and routers, but also HTTP servers, Email servers, Database servers, or any other 
+network server.  
+
+That said, you probably wouldn't want to.
+OpenFlow and Frenetic are optimized for small, very selective packet inspections and creations.  
+The more packets you inspect through \texttt{packet\_in()}, the slower your controller will be, and
+the more likely that packets will be dropped or sent out of sequence.  
+
+\section{OpenFlow Constructs Not Supported by NetKAT}
+
+- Outputting to special ports - NORMAL, FLOOD, etc.
+- Setting the buffer size for a Send to Controller action

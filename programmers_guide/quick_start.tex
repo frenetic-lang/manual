@@ -1,3 +1,5 @@
+% !TEX root = frenetic_programmers_guide.tex
+
 \chapter{Quick Start}
 
 In this book, you will use Frenetic to create a full-programmable network.  For the moment, let's assume you're familiar with Software Defined Networking and the OpenFlow protocol, and just dive right in.  (If you're not, don't worry!  We'll introduce some bedrock concepts in the next chapter and explain everything that happened here.)  
@@ -183,7 +185,7 @@ class RepeaterApp(frenetic.App):
 
     def packet_in(self, dpid, port_id, payload):
         out_port = 2 if port_id = 1 else 1
-        self.pkt_out(dpid, payload, [ Output(Physical(out_port_id)) ] )
+        self.pkt_out(dpid, payload, [ Send(out_port_id) ] )
 
 app = RepeaterApp()
 app.start_event_loop()
