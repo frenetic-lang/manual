@@ -1,0 +1,163 @@
+% !TEX root = frenetic_programmers_guide.tex
+
+\chapter{NetKAT Principles}
+
+\newtheorem{principle}{Principle}
+
+\section{Efficient SDN}
+
+In a nutshell, the \texttt{packet\_in()} hook receives network packets and the \texttt{pkt\_out()} command sends
+network packets.  
+In theory, you could use these two to implement arbitrarily-complex network clients and servers.  
+You could build switches and routers, but also HTTP servers, Email servers, Database servers, or any other 
+network server.  
+
+That said, you probably wouldn't want to.
+OpenFlow and Frenetic are optimized for small, very selective packet inspections and creations.  
+The more packets you inspect through \texttt{packet\_in()}, the slower your controller will be, and
+the more likely that packets will be dropped or sent out of sequence.  
+
+\begin{principle}
+\label{principle:controller}
+Keep as much traffic out of the controller as possible.
+Instead, program NetKAT policies to make most of the decisions inside the switch.  
+\end{principle}
+
+So let's go back to our naive Repeater application:
+
+\begin{lstlisting}
+import sys
+sys.path.append('../src/frenetic/lang/python')
+import frenetic
+from frenetic.syntax import *
+
+class RepeaterApp(frenetic.App):
+
+    def connected(self):
+        self.update( id >> SendToController("repeater_app") )
+
+    def packet_in(self, dpid, port_id, payload):
+        out_port = 2 if port_id = 1 else 1
+        self.pkt_out(dpid, payload, [ Send(out_port_id) ] )
+
+app = RepeaterApp()
+app.start_event_loop()
+\end{lstlisting}
+
+Here, \emph{every single packet} goes from the switch to Frenetic to the net app and back out. 
+That's horribly inefficient, and it unecessarily so since all the decisions can be made inside the switch.
+So let's write a more efficient one:
+
+\begin{lstlisting}
+import sys
+sys.path.append('../src/frenetic/lang/python')
+import frenetic
+from frenetic.syntax import *
+
+class RepeaterApp2(frenetic.App):
+
+    def connected(self):
+        policy_port_one = Filter(PortEq(1)) >> Send(2)
+        policy_port_two = Filter(PortEq(2)) >> Send(1)
+        self.update( policy_port_one | policy_port_two )
+
+app = RepeaterApp()
+app.start_event_loop()
+\end{lstlisting}
+
+Wow!  
+That program takes principle \ref{principle:controller} very seriously, to the point where \emph{no} packets 
+arrive at the controller.
+All of the configuration of the switch is done up front.
+
+The \texttt{Filter(PortEq(1)) >> Send(2)} policy is a pretty common pattern in NetKAT.
+You first whittle down the incoming flood of packets to a certain subset with \texttt{Filter} and a 
+predicate.
+Then you apply a policy or series of policies, \texttt{Send} being the most popular.
+We'll look at combining policies in the section~\ref{section:combining}.
+
+If you've worked with OpenFlow, you might wonder how the NetKAT rules get translated to OpenFlow rules.
+In this example, it's fairly straightforward.
+You get two OpenFlow rules in the rule table, which you can see in the Frenetic debug window:
+
+TODO
+
+But this is not true in general.  
+One NetKAT rule may expand into many, many OpenFlow rules.
+And it may go the opposite direction to: where different NetKAT rules are combined to create one OpenFlow rule.
+It's the same thing that happens with most compiled languages -- the rules that govern the compiled code
+are non-trivial. 
+If they were easy, you wouldn't need a computer to do it!
+
+There are two problems with RepeaterApp2:
+
+\begin{itemize}
+  \item It works on a two port switch, but not anything bigger.  
+  And the ports absolutely have
+  to be numbered 1 and 2 \ldots otherwise, the whole program doesn't work.
+  And those ports need to be functioning.
+  \item More subtly, this program can drop packets.  
+  There is a short lag in between when the switches come up and the \texttt{self.update()} installs
+  the policies. 
+  During this lag, packets will arrive at the controller by default and get dropped by the 
+  default \texttt{packet\_in} handler in Frenetic.   
+\end{itemize}
+
+We will correct both of these problems in section~\ref{section:stateless}
+
+\section{Combining NetKAT Policies}
+\label{section:combining}
+
+In our Repeater2 network app, the two rules have the \texttt{Seq} operator >> in them, then the two rules 
+are joined together with \texttt{Union} or |.  
+So when do you use one or the other?
+The following principle is easy to remember and apply.
+
+\begin{principle}
+Use \texttt{Seq} or \texttt{>>} between filters and their actions to form a rule.
+Use \texttt{Union} to combine policies that DO NOT overlap.
+Use \texttt{IfThenElse} to combine policies that DO overlap. 
+\end{principle}
+
+To see why this is so, let's go back to the definition of \texttt{Seq} and \texttt{Union}.
+A \texttt{Seq} of policies applies each policy sequentially to each packet.
+A \texttt{Union}, on the other hand, makes a duplicate of the packet and sends each copy through each policy 
+simultaneously.
+
+A \texttt{Union} after a \texttt{Filter} is useless because \texttt{Filter} does nothing but grab a subset 
+of packets.
+\texttt{Union} makes two copies of the packet, one which goes through the filter, and one which does another action.
+But filtering, by itself, does nothing useful to the packet, and after it's over, if there are no 
+further actions, the packet is dropped. 
+If your complete policy was \texttt{Filter(SwitchEq(2) \& PortEq(9))}, nothing will happen to the packet, even
+if it arrived on switch 2, port 9.  
+
+Suppose you have two rules:
+
+\begin{itemize}
+  \item Filter(TcpPort(80)) >> drop Drops non-encrypted HTTP traffic 
+  \item Filter(SwitchEq(1) \& PortEq(2)) >> Send(1) Sends port 2 traffic out port one.
+\end{itemize}
+
+Let's say you combine these with:
+
+\begin{description}
+  \item[Union] - all packets going to port 80 from port 2 will be copied twice.  
+  The first will be dropped by the first Filter, the second will be output by the second Filter, ensuring the
+  packet will go out anyway. 
+  \item[Seq] - all packets going to port 80 from port 2 will be dropped by the first rule and will never
+  make it to the second.   
+\end{description}
+
+TODO: Explain this better.  
+
+\section{Keeping It Stateless}
+\label{section:stateless}
+
+\begin{principle}
+When you install a new switch policy, do not assume it's there before the next matching packet arrives.
+\end{principle}
+
+\begin{principle}
+Build mechanisms to automatically recreate the state if the net app dies.
+\end{principle}

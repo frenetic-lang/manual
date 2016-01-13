@@ -1,6 +1,6 @@
 % !TEX root = frenetic_programmers_guide.tex
 
-\chapter{Introduction to NetKAT}
+\chapter{NetKAT}
 
 Software Defined Networking, or SDN, is a huge paradigm shift in the computing world.  
 Traditional networking involves 
@@ -25,7 +25,8 @@ With SDN, data centers can step off the proprietary network treadmill.
 Its a shift similar to the personal computer revolution of the 1980's.
 Before that, IBM and similar mainframes controlled the computer space, and required the same kinds of 
 forklift upgrades networks do.
-The IBM Personal Computer opened up the architecture to competitors, who could then design and build extensions
+The IBM Personal Computer opened up the architecture to competitors, who could then design and 
+build extensions
 that made it more useful.
 This created a snowball effect, with hardware extensions like the mouse and Ethernet cards opening the way 
 for new software like Microsoft Windows and the Netscape browser.
@@ -178,13 +179,38 @@ Sounds pretty easy, but \ldots
 
 \section{OpenFlow is Difficult}
 
+TODO
+
 \subsection{OpenFlow Tables Are Difficult to Program}
 
 Writing flow table entries directly is like writing programs in assembly language.
+TODO
 
 \subsection{OpenFlow Tables Are Difficult to Compose}
 
-\section{NetKAT Makes Network Programming Easier}
+TODO
+
+\subsection{OpenFlow Tables are Difficult to Prove Correct}
+
+\section{Frenetic and NetKAT Make Network Programming Easier}
+
+Other SDN controllers like OpenDaylight, RYU, and Beacon force you to manipulate 
+OpenFlow tables directly.  
+Frenetic works at a higher abstraction level.  
+Here, instead of writing programs that directly call OpenFlow primitives, you write programs in 
+the NetKAT language.
+These programs are called \emph{network applications} or more succinctly \emph{net apps}.
+
+Frenetic's main job is to compile NetKAT policies into OpenFlow flow tables.  
+It directly communicates with the switch hardware (southbound) and to your net apps (northbound).
+Net apps talk to Frenetic with good ol' fashioned HTTP, REST, and JSON.
+The JSON-based NetKAT dialect is available to anyone, and any programming language that can talk HTTP and 
+JSON can talk to Frenetic.
+In this manual, we use the Python bindings for NetKAT because they're easy to use and extend, and they
+come bundled with Frenetic.  
+This saves you from dealing with the esoterica of HTTP communication and JSON formatting.  
+
+TODO
 
 \section{Predicates}
 
@@ -790,20 +816,10 @@ In the background, the buffer id is sent with the packet in and re-output on the
 It must be sent back to the port it arrived on, since each port has a different buffer.
 If the response comes too late, the packet will be unceremoniously dropped.  
 
-\section{Back to the Repeater}
-
-In a nutshell, the \texttt{packet\_in()} hook receives network packets and the \texttt{pkt\_out()} command sends
-network packets.  
-In theory, you could use these two to implement arbitrarily-complex network clients and servers.  
-You could build switches and routers, but also HTTP servers, Email servers, Database servers, or any other 
-network server.  
-
-That said, you probably wouldn't want to.
-OpenFlow and Frenetic are optimized for small, very selective packet inspections and creations.  
-The more packets you inspect through \texttt{packet\_in()}, the slower your controller will be, and
-the more likely that packets will be dropped or sent out of sequence.  
 
 \section{OpenFlow Constructs Not Supported by NetKAT}
+
+TODO: Make pretty
 
 - Outputting to special ports - NORMAL, FLOOD, etc.
 - Setting the buffer size for a Send to Controller action
