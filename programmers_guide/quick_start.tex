@@ -185,7 +185,7 @@ class RepeaterApp(frenetic.App):
 
     def packet_in(self, dpid, port_id, payload):
         out_port = 2 if port_id = 1 else 1
-        self.pkt_out(dpid, payload, [ Send(out_port_id) ] )
+        self.pkt_out(dpid, payload, [ Output(Physical(out_port_id)) ] )
 
 app = RepeaterApp()
 app.start_event_loop()
@@ -210,7 +210,7 @@ outputs the packet to all ports except the one on which it arrived (called the {
 
 \lstinline{pkt_out} is a method provided by Frenetic to actually send the packet out the switch.  It takes three 
 parameters: a switch, a packet, and a policy.  
-Here are policy send the packet out to port \lstinline{out_port_id}.   
+Here the policy sends the packet out to port \lstinline{out_port_id}.   
 
 \section{Running The Repeater Application}
 
