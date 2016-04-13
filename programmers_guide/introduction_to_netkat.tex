@@ -360,13 +360,13 @@ Matches packets that satisfy one of the predicates: $p1$ OR $p2$ OR \ldots OR $p
 \bigskip
 
 The precedence is the same as for most Boolean operators in normal programming languages: 
-\lstinline{Not}, then \lstinline{And}, then \lstinline{Or}.  
+\netkat{Not}, then \netkat{And}, then \netkat{Or}.  
 
 A bunch of predicates, stitched together with Boolean operators, can be used wherever a simple predicate is used.
 Furthermore, predicates can be assigned to Python variables.
 So here are some examples in Python code:
 
-\begin{lstlisting}
+\begin{minted}{python}
 import sys
 sys.path.append('../src/frenetic/lang/python')
 import frenetic
@@ -388,13 +388,13 @@ port_switch_match = PortEq(8) & SwitchEq(2, 3)
 all_criteria = [ EthSrc("ff:ff:ff:ff:ff:ff"), PortEq(1), VlanEq(2345) ] 
 brd_or_port_match = Or( all_criteria ) 
 
-\end{lstlisting}
+\end{minted}
 
-One predicate requires some explanation: \lstinline{SwitchEq}.  
+One predicate requires some explanation: \netkat{SwitchEq}.  
 An OpenFlow flow table belongs to one and only one switch, but a NetKAT program belongs to every
 switch connected to that controller.  
-So a predicate tagged with \lstinline{SwitchEq} will limit a particular match to a particular switch.
-Any predicates that don't have a \lstinline{SwitchEq} predicate will apply to \textit{all} switches in the network.
+So a predicate tagged with \netkat{SwitchEq} will limit a particular match to a particular switch.
+Any predicates that don't have a \netkat{SwitchEq} predicate will apply to \textit{all} switches in the network.
 
 Finally, there are a few special predicates:
 
@@ -444,10 +444,10 @@ Vlan is in the packet (if there is one).
 \texttt{SetEthType($t$)} & Set Ethernet Type to $t$, where t is a 32 bit integer.
 \\ \hline
 \texttt{SetIPProto($p$)} & Set IP Protocol to $p$.    
-This action is only done when EthTypeEq([0x800, 0x806]) (IP or ARP). 
+This action is only done when EthTypeEq(0x800, 0x806) (IP or ARP). 
 \\ \hline
 \texttt{SetIPSrc($addr$)} & Set IP source address to $addr$.  Note there is no mask here, as in the equivalent predicate.  
-This action is only done when EthTypeEq([0x800, 0x806]) (IP or ARP). 
+This action is only done when EthTypeEq(0x800, 0x806) (IP or ARP). 
 \\ \hline
 \texttt{SetIPDst($addr$)} & Set IP destination address to $addr$.  
 Follows same rules as SetIpSrc.
@@ -479,7 +479,8 @@ policy operators:
 Also known as \textit{parallel composition}.
 \\ \hline  
 \texttt{Union([$pol1$, $pol2$, \ldots, $poln$])} & 
-Copy the packet $n$ times and apply policy $pol[i]$ to copy $i$
+Copy the packet $n$ times and apply policy $pol[i]$ to copy $i$.
+Also know as \textit{parallel composition}.  
 \\ \hline  
 \texttt{$pol1$ >> $pol2$} & Apply the policy $pol1$ to the packet, then apply $pol2$ to it
 Also known as \textit{sequential composition}.
@@ -641,7 +642,7 @@ A judicious use of NetKAT policies in the flow table will ensure this.
 If you don't need to examine any packet data, you can simply drop $packet$, or pass it directly to \texttt{pkt\_out},
 as we did in our Repeater app:
 
-\begin{lstlisting}
+\begin{minted}{python}
 ...
 class RepeaterApp(frenetic.App):
 
@@ -651,7 +652,7 @@ class RepeaterApp(frenetic.App):
         self.pkt_out(dpid, payload, [ Output(Physical(out_port_id)) ] )
 
 ...
-\end{lstlisting}
+\end{minted}
 
 Here, we merely send the payload out unchanged.  
 If it came in as buffered data, it will be sent out as buffered data.
@@ -672,7 +673,7 @@ parsing library is very solid and complete.
 
 Frenetic provides a simple API on top of RYU Packet.
 
-\begin{lstlisting}
+\begin{minted}{python}
 # You must import the proper protocol from the RYU packet library to use it
 from ryu.lib.packet import ethernet, arp
 ...
@@ -684,7 +685,7 @@ from ryu.lib.packet import ethernet, arp
           src_ip = arp_packet.src_ip
 
 ...
-\end{lstlisting}
+\end{minted}
 
 \texttt{p = packet($payload$, $protocol$)} turns the raw $payload$ into a parsed packet of type $protocol$.  
 From there, the fields of $p$ are the parsed values of that protocol.  
@@ -829,50 +830,58 @@ reserializing the packet in the controller.
 For example, a common routing function is to change the destination MAC address for a next hop router.
 Here's an example of doing this with Policy Modification:
 
-\begin{lstlisting}
-...
+\begin{minted}{python}
+
     def packet_in(self, dpid, port_id, payload):
         (next_hop_mac, next_port) = calculate_next_hop(payload)
         self.pkt_out(dpid, new_payload, 
           [ SetEthDst(next_hop_mac), Output(Physical(next_port)) ]
         )	
-...
-\end{lstlisting}
+
+\end{minted}
 
 For those times when you need Direct Modification, here's an example of how to do it:
 
-\begin{lstlisting}
+\begin{minted}{python}
 from ryu.lib.packet import ethernet, arp
 ...
+
+    def payload(self, e, pkt):
+        p = packet.Packet()
+        p.add_protocol(e)
+        p.add_protocol(pkt)
+        p.serialize()
+        return NotBuffered(binascii.a2b_base64(binascii.b2a_base64(p.data)))
+
     def packet_in(self, dpid, port_id, payload):
-        (ethernet_packet, arp_packet) = 
-        	self.packet(payload, ['ethernet', 'arp'])
+        ethernet_packet = self.packet(payload, 'ethernet') 
+        arp_packet = self.packet(payload, 'arp')
         # Flip a request into a reply and vice versa
         arp_packet.opcode =  \ 
           arp.ARP_REPLY if arp_packet.opcode == arp.ARP_REQUEST \
           else arp.ARP_REPLY
-	# Reserialize it back into a raw packet
+	    # Reserialize it back into a raw packet
         new_payload = self.payload(ethernet_packet, arp_packet)
         self.pkt_out(dpid, new_payload, [ Output(Physical(1)) ])	
 ...
-\end{lstlisting}
+\end{minted}
 
 You can also create packets from scratch with a variation of Direct Modification.  
 First create the packet views with standard RYU Packet library constructors.
 Then just call \texttt{self.payload()} on them to create the raw packet and send it.  
 
-\begin{lstlisting}
+\begin{minted}{python}
 from ryu.lib.packet import ethernet, arp
 ...
     def send_arp_reply(port, src_mac, dst_mac, src_ip, dst_ip):
         # Immediately send an ARP reply when a port comes up.
         e = ethernet.ethernet(dst=dst_mac, src=src_mac, ethertype=0x806)
         a = arp.arp_ip(arp.ARP_REPLY, src_mac, src_ip, dst_mac, dst_ip)
-	# Serialize it into a raw packet
+	    # Serialize it into a raw packet
         new_payload = self.payload(ethernet_packet, arp_packet)
         self.pkt_out(dpid, new_payload, [ Output(Physical(port)) ])	
 ...
-\end{lstlisting}
+\end{minted}
 
 \subsection{Buffering}
 

@@ -23,71 +23,55 @@ Keep as much traffic out of the controller as possible.
 Instead, program NetKAT policies to make most of the decisions inside the switch.  
 \end{principle}
 
-So let's go back to our naive Repeater application:
+So let's go back to our Repeater application:
 
-\begin{lstlisting}
-import sys
-sys.path.append('../src/frenetic/lang/python')
-import frenetic
-from frenetic.syntax import *
-
-class RepeaterApp(frenetic.App):
-
-    def connected(self):
-        self.update( id >> SendToController("repeater_app") )
-
-    def packet_in(self, dpid, port_id, payload):
-        out_port = 2 if port_id = 1 else 1
-        self.pkt_out(dpid, payload, [ Send(out_port_id) ] )
-
-app = RepeaterApp()
-app.start_event_loop()
-\end{lstlisting}
+\inputminted{python}{code/quick_start/repeater.py}
 
 Here, \emph{every single packet} goes from the switch to Frenetic to the net app and back out. 
-That's horribly inefficient, and it unecessarily so since all the decisions can be made inside the switch.
-So let's write a more efficient one:
+That's horribly inefficient, and unnecessarily so since all the decisions can be made inside the switch.
+So let's write a more efficient one.
+The following code is in \texttt{code/netkat\_principles/repeater2.py}:
 
-\begin{lstlisting}
-import sys
-sys.path.append('../src/frenetic/lang/python')
-import frenetic
-from frenetic.syntax import *
+\inputminted{python}{code/netkat_principles/repeater2.py}
 
-class RepeaterApp2(frenetic.App):
-
-    def connected(self):
-        policy_port_one = Filter(PortEq(1)) >> Send(2)
-        policy_port_two = Filter(PortEq(2)) >> Send(1)
-        self.update( policy_port_one | policy_port_two )
-
-app = RepeaterApp()
-app.start_event_loop()
-\end{lstlisting}
-
-Wow!  
-That program takes principle \ref{principle:controller} very seriously, to the point where \emph{no} packets 
+This program takes principle \ref{principle:controller} very seriously, to the point where \emph{no} packets 
 arrive at the controller.
 All of the configuration of the switch is done up front.
 
-The \texttt{Filter(PortEq(1)) >> Send(2)} policy is a pretty common pattern in NetKAT.
+The \texttt{Filter(PortEq(1)) >> SetPort(2)} policy is a pretty common pattern in NetKAT.
 You first whittle down the incoming flood of packets to a certain subset with \texttt{Filter} and a 
 predicate.
-Then you apply a policy or series of policies, \texttt{Send} being the most popular.
+Then you apply a policy or series of policies, \texttt{SetPort} being the most popular.
 We'll look at combining policies in the section~\ref{section:combining}.
 
 If you've worked with OpenFlow, you might wonder how the NetKAT rules get translated to OpenFlow rules.
 In this example, it's fairly straightforward.
 You get two OpenFlow rules in the rule table, which you can see in the Frenetic debug window:
 
-TODO
+\begin{minted}{console}
+ [INFO] POST /repeater/update_json
+ [INFO] GET /repeater/event
+ [INFO] New client repeater
+[DEBUG] Installing policy
+drop | (filter port = 1; port := 2 | filter port = 2; port := 1)
+[DEBUG] Setting up flow table
++-------------------------+
+| 1 | Pattern | Action    |
+|-------------------------|
+| InPort = 1  | Output(2) |
+|-------------------------|
+| InPort = 2  | Output(1) |
+|-------------------------|
+|             |           |
++-------------------------+
+\end{minted}
 
 But this is not true in general.  
 One NetKAT rule may expand into many, many OpenFlow rules.
 And it may go the opposite direction to: where different NetKAT rules are combined to create one OpenFlow rule.
 It's the same thing that happens with most compiled languages -- the rules that govern the compiled code
 are non-trivial. 
-If they were easy, you wouldn't need a computer to do it!
+If they were easy, you wouldn't need a compiler to do it!
 
 There are two problems with RepeaterApp2:
 
@@ -108,56 +92,425 @@ We will correct both of these problems in section~\ref{section:stateless}
 \section{Combining NetKAT Policies}
 \label{section:combining}
 
-In our Repeater2 network app, the two rules have the \texttt{Seq} operator >> in them, then the two rules 
-are joined together with \texttt{Union} or |.  
-So when do you use one or the other?
-The following principle is easy to remember and apply.
+In our Repeater2 network app, the two rules have the \texttt{Seq} operator \texttt{>>} in them, then the two rules 
+are joined together with \texttt{Union} or \texttt{|}.  
+But what is the difference between the two?
+When do you use one or the other?
+
+To illustrate this, let's go back to NetKAT basics.  At the lowest level there are two types
+of building blocks: filters and modifications.  
+
+\includegraphics{netkat_policy_building_blocks}
+
+A filter, shown at the top, takes as input a stream of packets.  Packets that match its criteria are
+forwarded, packets that don't match are dropped.  Two special filters, \texttt{id} and \texttt{drop}, 
+let through all or no packets respectively.  
+
+A modification changes packet header values.  In the bottom example, the \texttt{TcpSrcPort} header gets
+changed to 80.  This modification, but rather happens on a logical copy of the packet.  That means subsequent \texttt{Filters} match against the original value in the header, not the one we just changed it to.  But most of the 
+time, you can ignore this subtlety.
+
+Modifications to different headers can generally be specified in any order.  If two modifications to the same header 
+value occur one after the other, the last one wins. 
+
+You combine these building blocks with \texttt{Seq} and \texttt{Union}.
+
+\includegraphics{netkat_policy_combinators_seq}
+
+Here is a \texttt{Seq} of two policies, a filter and a modification.   In sequences, policies
+are chained together in a straight line, and packets travel through each of one of the policies in order.  
+Combining a filter plus modifications is very common in NetKAT programs, and we generally
+use \texttt{Seq} to combine them into a \emph{rule}.  
+
+A rule is like an OpenFlow flow table entry, but with more options.  
+If you think about it, a switch receives a huge firehose blast of packets, and you want the switch to 
+perform a targeted action on a very small subset of those packets. 
+In other words, you want a \emph{filter} and some \emph{actions}.
+It's like the MapReduce paradigm, but in reverse order - you first \emph{reduce} the stream to a manageable level,
+then \emph{map} the result by performing actions on it.  
+
+With \texttt{Seq}, order matters.  So the rule \texttt{drop >> Filter(EthTypeEq(0x806))} 
+drops ALL packets, no matter the type.  
+The second filter is never reached.  
+In general, putting all the filters before the actions in a sequence chain is the clearest way to write it.
+
+The following principle is a good guideline:  
 
 \begin{principle}
-Use \texttt{Seq} or \texttt{>>} between filters and their actions to form a rule.
-Use \texttt{Union} to combine policies that DO NOT overlap.
-Use \texttt{IfThenElse} to combine policies that DO overlap. 
+\item Use \texttt{Seq} or \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
 \end{principle}
 
-To see why this is so, let's go back to the definition of \texttt{Seq} and \texttt{Union}.
-A \texttt{Seq} of policies applies each policy sequentially to each packet.
-A \texttt{Union}, on the other hand, makes a duplicate of the packet and sends each copy through each policy 
-simultaneously.
+\texttt{SetPort} is an exception to the rule that we'll see in a minute.  
 
-A \texttt{Union} after a \texttt{Filter} is useless because \texttt{Filter} does nothing but grab a subset 
-of packets.
-\texttt{Union} makes two copies of the packet, one which goes through the filter, and one which does another action.
-But filtering, by itself, does nothing useful to the packet, and after it's over, if there are no 
-further actions, the packet is dropped. 
-If your complete policy was \texttt{Filter(SwitchEq(2) \& PortEq(9))}, nothing will happen to the packet, even
-if it arrived on switch 2, port 9.  
+\includegraphics{netkat_policy_combinators_union}
+
+A \texttt{Union} of policies makes several logical copies of policies and sends the copy of each packet
+through each policy in parallel.  In the bottom example, the two incoming packets are copied three times, one
+for each rule.  In this case, the top filter only forwards a copy of the first packet.
+The middle filter only forwards a copy of the second packet.
+The bottom filter doesn't forward any packets at all.  
+
+\begin{principle}
+Use \texttt{Union} or \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
+Use \texttt{IfThenElse} to combine rules that DO overlap. 
+\end{principle}
+
+We'll explain \texttt{IfThenElse} in a little bit.  
+
+You might think, ``All that packet copying must be really tough on the switch.''  In fact, all the 
+packet copying is conceptual, it doesn't necessarily happen in the switch.  Frenetic turns NetKAT
+programs into flow tables, and these flow tables generally work through sophisticated TCAM's, Hash tables,
+and pipelines that eliminate actual packet copying.  So don't worry about stringing 20,000 policies
+with a \texttt{Union}.  Your switch can handle it.   
+
+Now \texttt{SetPort} is a little different.  Other modifications like \texttt{SetTcpDstPort} act on a single packet at a time.
+A single \texttt{SetPort} is like this - we merely want to change the egress port of the packet itself.  But if 
+you want to send it out multiple ports at once, as in flooding, you need to use multiple \texttt{SetPort} actions.
+
+\includegraphics{netkat_policy_combinators_set_port}
+
+If you string these \texttt{SetPort}s together in a \texttt{Seq}, the single packet will be assigned each output port in turn, and
+the last assigned egress port will ``win''.  
+This is probably not what you want.  
+On the other hand, stringing these together with \texttt{Union} makes more sense.  You actually WANT to make
+extra copies of the packet, and send each copy out a different port.  
+
+Now let's look at \texttt{Union} and \texttt{IfThenElse}.  
+As we have seen in Chapter 2, Union is parallel composition:
+we effectively make copies of each packet and apply the rules to each packet.  So in our 
+repeater application, the rules are:
+
+\begin{itemize}
+  \item \texttt{Filter(PortEq(1)) >> SetPort(2)} Sends traffic from port 1 out port 2 
+  \item \texttt{Filter(PortEq(2)) >> SetPort(1)} Sends traffic from port 2 out port 1 
+\end{itemize}
+
+A packet cannot match both rules -- in other words, there is no overlap.  So a \texttt{Union} between
+these two rules is appropriate.  You make a copy of each packet, send it through each of the rules.  
+One or the other will match and send it out the appropriate port, the other will simply drop it.  
 
 Suppose you have two rules:
 
 \begin{itemize}
-  \item Filter(TcpPort(80)) >> drop Drops non-encrypted HTTP traffic 
-  \item Filter(SwitchEq(1) \& PortEq(2)) >> Send(1) Sends port 2 traffic out port one.
+  \item \texttt{Filter(TcpDstPortEq(80)) >> drop} Drops non-encrypted HTTP traffic 
+  \item \texttt{Filter(PortEq(2)) >> SetPort(1)} Sends port 2 traffic out port one.
 \end{itemize}
 
-Let's say you combine these with:
+\includegraphics{netkat_overlapping_union}
 
-\begin{description}
-  \item[Union] - all packets going to port 80 from port 2 will be copied twice.  
-  The first will be dropped by the first Filter, the second will be output by the second Filter, ensuring the
-  packet will go out anyway. 
-  \item[Seq] - all packets going to port 80 from port 2 will be dropped by the first rule and will never
-  make it to the second.   
-\end{description}
+These two rules overlap.  A packet can both have a TCP destination port of 80 and
+arrive on switch 1, port 2.  What happens if we combine them with \texttt{Union}, and a packet
+like that arrives at the switch?  The packet will be copied twice, then:
 
-TODO: Explain this better.  
+\begin{itemize}
+  \item \texttt{Filter(TcpDstPortEq(80)) >> drop} will drop the first copy of the packet 
+  \item \texttt{Filter(PortEq(2)) >> SetPort(1)} will send out the second copy to port 1
+\end{itemize}
+
+But that's probably not what you intended.  You probably want the HTTP rule to take precedence over the
+sending rule.  In such cases,
+\texttt{IfThenElse} makes the precedence crystal clear:
+
+\texttt{IfThenElse(TcpDstPortEq(80), drop, Filter(PortEq(2)) >> SetPort(1))}
+
+\includegraphics{netkat_overlapping_if_then_else}
+
+The predicate is tested, and if it matches, the first policy is performed, otherwise the second is performed.
+
+That's pretty powerful, and in fact we can write the repeater app to use \texttt{IfThenElse} instead of Union:
+
+\texttt{IfThenElse(PortEq(1), SetPort(2), Filter(PortEq(2)) >> SetPort(1) }
+
+So why not just use \texttt{IfThenElse} for combining rules all the time?  In a real switch, you might have 
+hundreds of non-overlapping rules.  Writing them as:
+
+\texttt{IfThenElse(predicate1), action1, IfThenElse(predicate2, action2, IfThenElse...}
+
+is doable but a lot more verbose.  It also hides the fact that the rules are non-overlapping, and this is useful
+information when rummaging through an SDN app. 
+
+\texttt{IfThenElse} is really syntactic sugar.  The statement:
+
+IfThenElse(pred, true\_policy, false\_policy)
+
+is just a shortcut for:
+
+Filter(pred) >> true\_policy | Filter(! pred) >> false\_policy
+
+but it's a lot shorter and easier to understand, especially for programmers accustomed to seeing If-Then-Else
+constructs in other programming languages.
 
 \section{Keeping It Stateless}
 \label{section:stateless}
 
-\begin{principle}
-When you install a new switch policy, do not assume it's there before the next matching packet arrives.
-\end{principle}
+So let's kick it up a notch.  
+Our repeater is fast, but pretty static -- it only works with two ports, and only ports that are numbered
+1 and 2.
+So let's extend our repeater to do two things: 
+
+\begin{enumerate}
+\item On connection, read the list of currently available ports and build the initial NetKAT policy accordingly.
+\item When ports go up or down, adjust the policy dynamically.
+\end{enumerate}
+
+The first task requires us to inquire which ports a switch has.  Frenetic provides a \texttt{current\_switches()}
+method that does exactly that.   The best time to call it is on the \texttt{connected()} hook since, at that
+point, Frenetic knows the switches and ports out there.
+
+The following code is in \texttt{code/netkat\_principles/repeater3.py}:
+
+\inputminted{python}{code/netkat_principles/repeater3.py}
+
+\texttt{current\_switches()} is an asynchronous call, meaning you don't get the results immediately.
+Instead, we pass a callback procedure named \texttt{handle\_current\_switches}, which Frenetic calls
+when the \texttt{current\_switches()} call is complete and has results.  In our first pass, the callback
+is just a one line procedure that prints the results to the log (the screen by default).  Although
+we could define \texttt{handle\_current\_switches()} outside the \texttt{connected()} method, placing
+it inside clarifies the connection between the two.  
+
+So let's start up Mininet with 4 hosts this time:
+
+\begin{minted}{console}
+vagrant@frenetic:~/workspace$ sudo mn --topo=single,4 --controller=remote
+*** Creating network
+*** Adding controller
+Unable to contact the remote controller at 127.0.0.1:6633
+*** Adding hosts:
+h1 h2 h3 h4
+*** Adding switches:
+s1
+*** Adding links:
+(h1, s1) (h2, s1) (h3, s1) (h4, s1)
+*** Configuring hosts
+h1 h2 h3 h4
+*** Starting controller
+c0
+*** Starting 1 switches
+s1 ...
+*** Starting CLI:
+mininet>
+\end{minted}
+
+Start up Frenetic:
+
+\begin{minted}{console}
+vagrant@frenetic:~/workspace$ ~/src/frenetic/frenetic.native http-controller
+ [INFO] Calling create!
+ [INFO] Current uid: 1000
+ [INFO] Successfully launched OpenFlow controller with pid 2035
+ [INFO] Connecting to first OpenFlow server socket
+ [INFO] Failed to open socket to OpenFlow server: (Unix.Unix_error "Connection refused" connect 127.0.0.1:8984)
+ [INFO] Retrying in 1 second
+ [INFO] Successfully connected to first OpenFlow server socket
+ [INFO] Connecting to second OpenFlow server socket
+ [INFO] Successfully connected to second OpenFlow server socket
+ [INFO] switch 1 connected
+\end{minted}
+
+And start up our application:
+
+\begin{minted}{console}
+vagrant@frenetic:~/workspace$ python repeater3.py
+No client_id specified. Using 0323e4bc31c94e81939d9f51640f1f5b
+Starting the tornado event loop (does not return).
+2016-04-12 09:51:14,578 [INFO] Connected to Frenetic - Switches: {1: [4, 2, 1, 3]}
+\end{minted}
+
+The \texttt{handle\_current\_switches} callback gets called with a Python dictionary.  
+The keys in this dictionary are the datapath ID's (dpid's) of each switch -- in our case, we only have
+one switch with a dpid of 1.
+The value associated with the key is a list of ports that the switch has operational.  
+In this case, we have four ports labelled 1 through 4 (they will be in some random order in the list, as
+you see above).
+
+Great!  Once we have the list of ports, we can construct policies.  If a packet comes in on port
+1, it should be repeated to all the ports that are not 1, e.g. 2, 3 and 4, and so on.   
+The policy, written out manually, will look like this:
+
+\begin{minted}{python}
+Filter(PortEq(1)) >> (SetPort(2) | SetPort(3) | SetPort(4)) |
+Filter(PortEq(2)) >> (SetPort(1) | SetPort(3) | SetPort(4)) |
+Filter(PortEq(3)) >> (SetPort(1) | SetPort(2) | SetPort(4)) |
+Filter(PortEq(4)) >> (SetPort(1) | SetPort(2) | SetPort(3))
+\end{minted}
+
+A combination of Frenetic and Python lists makes this.  Suppose you have the list named $sw$
+\texttt{[1; 2; 3; 4]} from the callback.   The following Python list comprehension:
+
+\begin{minted}{python}
+SetPort(p) for p in sw
+\end{minted}
+
+returns the list:
+
+\begin{minted}{python}
+[ SetPort(1); SetPort(2); SetPort(3); SetPort(4) ]
+\end{minted}
+
+Now suppose we're looking only at port 1.  We want all of the \texttt{SetPort's} here 
+except \texttt{SetPort(1)}.  A little tweak to the list comprehension:
+
+\begin{minted}{python}
+SetPort(p) for p in sw if p != in_port
+\end{minted}
+
+Removes the input port from the list, leaving:
+
+\begin{minted}{python}
+[ SetPort(2); SetPort(3); SetPort(4) ]
+\end{minted}
+
+And now you can pass this to the NetKAT \texttt{Union} operator:
+
+\begin{minted}{python}
+Union( SetPort(p) for p in sw if p != in_port )
+\end{minted}
+
+\ldots which creates a parallel composition out of the entire list:
+
+\begin{minted}{python}
+SetPort(2) | SetPort(3) | SetPort(4)
+\end{minted}
+
+You can pass a Python list of policies to either \texttt{Union} or \texttt{Seq}, making it easy to build 
+very large policies from component parts very quickly.  
+
+So here is our repeater that installs an initial configuration.
+The following code is in \texttt{code/netkat\_principles/repeater4.py}:
+
+\inputminted{python}{code/netkat_principles/repeater4.py}
+
+Now it's just a hop, skip and  jump to a fully dynamic repeater.  First we need to capture packets from ports
+that we haven't seen yet.  We could write an extremely long filter, filtering out every port that's not on the
+list, but since port numbers can be 32-bits long, that's gonna be pretty huge:
+
+\begin{minted}{python}
+Filter(PortEq(5, 6, 7, ...) >> SendToController("repeater_app")
+\end{minted}
+
+It's easier just to write an overlapping rule.  Here id is a filter that matches all packets:
+
+\begin{minted}{python}
+id >> SendToController("repeater_app")
+\end{minted}
+
+But obviously, this overlaps with the rules for known ports in our repeater.  So we use an \texttt{IfThenElse} to 
+resolve the overlap:
+
+\inputminted[firstline=18,lastline=35]{python}{code/netkat_principles/repeater5.py}
+
+We take this opportunity to save the port list in an instance variable \texttt{self.all\_ports}.  This instance variable
+is the beginning of a Network Information Base, or NIB -- it encapsulates the known state of the network
+at this time.  We're going to see the NIB a lot in future apps.  You can think of our app as a function with the
+NIB as input and a NetKAT program as output.  Funky!
+
+Now how we do learn about new ports?  A packet arriving at \texttt{pkt\_in} will signal we're seeing a new port.
+So suppose we're seeing a packet on port 40.  If you think about, the entire NetKAT program will change from:
+
+\begin{minted}{python}
+Filter(PortEq(1)) >> (SetPort(2) | SetPort(3) | SetPort(4)) |
+Filter(PortEq(2)) >> (SetPort(1) | SetPort(3) | SetPort(4)) |
+Filter(PortEq(3)) >> (SetPort(1) | SetPort(2) | SetPort(4)) |
+Filter(PortEq(4)) >> (SetPort(1) | SetPort(2) | SetPort(3))
+\end{minted}
+
+to:
+
+\begin{minted}{python}
+Filter(PortEq(1)) >> (SetPort(2) | SetPort(3) | SetPort(4) | SetPort(40)) |
+Filter(PortEq(2)) >> (SetPort(1) | SetPort(3) | SetPort(4) | SetPort(40)) |
+Filter(PortEq(3)) >> (SetPort(1) | SetPort(2) | SetPort(4) | SetPort(40)) |
+Filter(PortEq(4)) >> (SetPort(1) | SetPort(2) | SetPort(3) | SetPort(40)) |
+Filter(PortEq(40)) >> (SetPort(1) | SetPort(2) | SetPort(3) | SetPort(4))
+\end{minted}
+
+Fortunately, we have all the logic we need in \texttt{self.all\_ports\_policy} already.  We just need
+to pass it an amended list of known ports.  Not a problem!
+
+\begin{minted}{python}
+  def packet_in(self, dpid, port_id, payload):
+    self.all_ports.add(port_id)
+    self.update(self.policy())
+\end{minted}
+
+What do we do with the packet we just received? 
+We could just drop it and hope the host is smart enough to resend it.  But that's not
+very hospitable.  
+
+What if we just do a \texttt{pkt\_out} immediately afterward?  After all, we just installed a rule that
+will deal with appropriately, right?
+
+\begin{minted}{python}
+  def packet_in(self, dpid, port_id, payload):
+    self.all_ports.add(port_id)
+    self.update(self.policy())
+    self.pkt_out(dpid, payload, [ ??? ] )
+\end{minted}
+
+There are two problems.  First, it's unclear what the action should be on \texttt{pkt\_out}.  If we send an empty 
+list of actions, the OpenFlow switch will interpret it as ``drop the packet.''.  
+
+Second, there's a timing problem.
+Even though we just sent a self.update, the call is asynchronous with no response when it's done updating the
+OpenFlow flow table.  It could take a microsecond, it could take an hour \ldots we just don't know.  
+This timing problem actually can cause more problems.  What if, before the new rules are installed, the 
+switch receives 100 more packets?  pkt\_in will be called 100 times, and each time the policy will
+be recalculated and sent to the switch.  That could cause major problems since installing switch rules can
+be a CPU-intensive process on the switch.
+
+\includegraphics{netkat_policy_timing_problem}
+
+Hence the following principle:
 
 \begin{principle}
-Build mechanisms to automatically recreate the state if the net app dies.
+When you install a new switch policy, do not assume it'll be installed right away.  
 \end{principle}
+
+We can solve this with two quick fixes.  One is to make a quick check that port has not actually be learned yet.
+The other is to add actions to pkt\_out that emulate the new rule.  
+
+Here's our final repeater program in \texttt{code/netkat\_principles/repeater5.py}:
+
+\inputminted{python}{code/netkat_principles/repeater5.py}
+
+In mininet with a simple 4-host topology, we can test our repeater by adding a 5th host and port:
+
+\begin{minted}{console}
+mininet> py net.addHost('h5')
+<Host h5:  pid=3187>
+mininet> py net.addLink(s1, net.get('h5'))
+<mininet.link.Link object at 0x7fd432ace810>
+mininet> py s1.attach('s1-eth5')
+mininet> py net.get('h5').cmd('ifconfig h5-eth0 10.5')
+\end{minted}
+
+The new port causes the switch to send an OpenFlow portUp message to our app.  We don't have a handler for
+the \texttt{port\_up} hook, so the default message appears:
+
+\begin{minted}{python}
+port_up(switch_id=1, port_id=5)
+\end{minted}
+
+Back in Mininet, let's try to ping from our new host:
+
+\begin{minted}{console}
+mininet> h5 ping -c 1 h1
+PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+64 bytes from 10.0.0.1: icmp_seq=1 ttl=64 time=996 ms
+
+--- 10.0.0.1 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 996.738/996.738/996.738/0.000 ms
+\end{minted}
+
+Looks good!  A combination of the new packet rules and the \texttt{pkt\_out} 
+is sending the packets to the correct place.  
+
+Now we have a robust repeater that acts mostly correctly.  There is a still a small timing problem.  If a packet
+arrives from port 1 bound for port 40 in that short interval before the rules for port 40 are installed, it
+will be copied to ports 2, 3, and 4 but not 40.  There's little we can do in the context of our simple repeater.
+
+But of course, modern network equipment doesn't act like a repeater.  That's 1980's technology!  Repeaters
+do a lot of unnecessary packet copying, flooding hosts with packets that are clearly destined for them.  
+So our next project will be building an L2 learning switch.  In that context, we'll correct some of the 
+remaining timing flaws.  And the result will be much more efficient. 

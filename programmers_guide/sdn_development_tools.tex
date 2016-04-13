@@ -13,8 +13,8 @@ With tmux you can split the screen into \emph{panes}, each of which can run a di
 In Frenetic development, it's helpful to run tmux with at least 3 panes, which you can see in the example above:
 
 \begin{enumerate}
-\item One pane runs your network application, e.g. \lstinline[style=BashInputStyle]{python repeater.py}
-\item One pane runs Frenetic, e.g. \lstinline[style=BashInputStyle]{frenetic http-server --verbosity debug}
+\item One pane runs your network application, e.g. \netkat{python repeater.py}
+\item One pane runs Frenetic, e.g. \netkat{frenetic http-server --verbosity debug}
 \item One pane runs Mininet
 \end{enumerate}
 
@@ -22,11 +22,11 @@ Tmux is very personalizable and configurable.
 But if you haven't used tmux before, here is a good setup to get you started.
 
 \begin{enumerate}
-\item Install tmux on Frenetic-vm with \lstinline[style=BashInputStyle]{sudo apt-get install tmux}
-\item Create a file in your home directory, ./tmux.conf with the line \lstinline{set -g prefix C-a}.  
+\item Install tmux on Frenetic-vm with \netkat{sudo apt-get install tmux}
+\item Create a file in your home directory, ./tmux.conf with the line \netkat{set -g prefix C-a}.  
 This maps the tmux prefix key to \Ctrl+\keystroke{A}, which is much easier to reach than the default 
 \Ctrl+\keystroke{B}
-\item Type \lstinline[style=BashInputStyle]{tmux} to start.
+\item Type \netkat[style=BashInputStyle]{tmux} to start.
 \end{enumerate}
 
 \Ctrl+\keystroke{A} is called the \emph{prefix key}, and we'll denote it as \keystroke{Prefix} below. 
@@ -50,7 +50,7 @@ The other panes continue to run, even though they're not visible.
 Pressing \keystroke{Prefix} \keystroke{Z} again unzooms the window.  
 \item \keystroke{Prefix} \keystroke{D} detaches from the Tmux session.  
 You can start it up again later, even after having logged off the Frenetic VM, by using 
-\lstinline[style=BashInputStyle]{tmux attach}.
+\netkat{tmux attach}.
 \end{itemize}
 
 Because tmux operates outside the normal window manager realms, you can no longer scroll up or down

@@ -3,7 +3,7 @@
 \documentclass[12pt]{report}
 
 \usepackage{palatino}
-\usepackage{listings}
+\usepackage{minted}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{fullpage}
@@ -11,26 +11,9 @@
 \usepackage{keystroke}
 \usepackage{natbib}
 
-\lstset{
-  language=Python, 
-  frame=lines, 
-  numbers=left, 
-  basicstyle=\small\ttfamily,
-  aboveskip=20pt,
-  belowskip=20pt
-}
-\lstdefinestyle{BashInputStyle}{ 
-  language=bash, 
-  basicstyle=\small\ttfamily,
-  keywordstyle=\small\ttfamily,
-  columns=fullflexible,
-  keepspaces=true,
-  numbers=none,
-  moredelim=[l][\color{blue}]{\$},
-  moredelim=[l][\color{blue}]{mininet>},
-  aboveskip=20pt,
-  belowskip=20pt
-}
+\newcommand{\netkat}[1]{\mintinline{python}{#1}}
+\setminted[python]{frame=lines, fontsize=\footnotesize}
+\setminted[console]{frame=lines, fontsize=\footnotesize}
 \graphicspath{ {./omnigraffle/} }
 
 \begin{document}
