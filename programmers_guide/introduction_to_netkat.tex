@@ -362,6 +362,9 @@ Matches packets that satisfy one of the predicates: $p1$ OR $p2$ OR \ldots OR $p
 The precedence is the same as for most Boolean operators in normal programming languages: 
 \netkat{Not}, then \netkat{And}, then \netkat{Or}.  
 
+As a shortcut, each of the field-matching predicates \netkat{FieldEq} has an analagous \netkat{FieldNotEq}
+predicate which matches all values \emph{except} the given ones.  
+
 A bunch of predicates, stitched together with Boolean operators, can be used wherever a simple predicate is used.
 Furthermore, predicates can be assigned to Python variables.
 So here are some examples in Python code:
@@ -382,6 +385,9 @@ port_ip_arp_match = PortEq(9) & EthType(0x800, 0x806)
 
 # Matches packets from a particular port on switches 2 or 3 only
 port_switch_match = PortEq(8) & SwitchEq(2, 3)
+
+# Matches packets from all ports except 2 or 3
+non_router_match = PortNotEq(2, 3)
 
 # Matches broadcast packets or packets from a particular port 
 # or packets with a particular Vlan
@@ -586,6 +592,7 @@ We'll see most of these commands and hooks used in the next few chapters.
 But since \texttt{pkt\_out()} and \texttt{packet\_in()} are crucial to net apps, we'll describe them first here.
 
 \subsection{The packet\_in Hook}
+\label{introduction:packet_in}
 
 \texttt{packet\_in()} is used to inspect network packets.  
 Note that \emph{not all packets} coming in through all switches 

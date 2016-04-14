@@ -137,7 +137,7 @@ In general, putting all the filters before the actions in a sequence chain is th
 The following principle is a good guideline:  
 
 \begin{principle}
-\item Use \texttt{Seq} or \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
+Use \texttt{Seq} or \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
 \end{principle}
 
 \texttt{SetPort} is an exception to the rule that we'll see in a minute.  
@@ -506,6 +506,41 @@ rtt min/avg/max/mdev = 996.738/996.738/996.738/0.000 ms
 Looks good!  A combination of the new packet rules and the \texttt{pkt\_out} 
 is sending the packets to the correct place.  
 
+\section{Summary}
+
+In building a dynamic repeater, we have learned the following NetKAT principles:
+
+\setcounter{principle}{0}
+
+\begin{principle}
+Keep as much traffic out of the controller as possible.
+Instead, program NetKAT policies to make most of the decisions inside the switch.  
+\end{principle}
+
+\begin{principle}
+Use \texttt{Seq} or \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
+\end{principle}
+
+\begin{principle}
+Use \texttt{Union} or \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
+Use \texttt{IfThenElse} to combine rules that DO overlap. 
+\end{principle}
+
+\begin{principle}
+When you install a new switch policy, do not assume it'll be installed right away.  
+\end{principle}
+
+And we'll learn a fifth in the next chapter:
+
+\begin{principle}
+Do not rely on network state.  Always assume the current packet is the first one you're seeing.   
+\end{principle}
+
+These principles are meant as guidelines, not straitjackets.
+As we build network applications over the next few chapters, we may find good reasons to violate them 
+to achieve shorter code or better modularity.
+That's OK. 
+
 Now we have a robust repeater that acts mostly correctly.  There is a still a small timing problem.  If a packet
 arrives from port 1 bound for port 40 in that short interval before the rules for port 40 are installed, it
 will be copied to ports 2, 3, and 4 but not 40.  There's little we can do in the context of our simple repeater.
@@ -514,3 +549,4 @@ But of course, modern network equipment doesn't act like a repeater.  That's 198
 do a lot of unnecessary packet copying, flooding hosts with packets that are clearly destined for them.  
 So our next project will be building an L2 learning switch.  In that context, we'll correct some of the 
 remaining timing flaws.  And the result will be much more efficient. 
+
