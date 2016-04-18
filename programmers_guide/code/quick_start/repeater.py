@@ -11,7 +11,7 @@ class RepeaterApp(frenetic.App):
     self.update( id >> SendToController("repeater_app") )
 
   def packet_in(self, dpid, port_id, payload):
-    out_port = 2 if port_id == 1 else 1
+    out_port_id = 2 if port_id == 1 else 1
     self.pkt_out(dpid, payload, [ Output(Physical(out_port_id)) ] )
 
 app = RepeaterApp()
