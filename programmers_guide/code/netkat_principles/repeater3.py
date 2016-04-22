@@ -1,5 +1,4 @@
-import sys
-sys.path.append('/home/vagrant/src/frenetic/lang/python')
+import sys, logging
 import frenetic
 from frenetic.syntax import *
 

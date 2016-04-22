@@ -10,14 +10,14 @@ class NetworkInformationBase():
   def __init__(self, logger):
     self.logger = logger
 
-  def learn(self, mac, port):
+  def learn(self, mac, port_id):
     # Do not learn a mac twice
     if mac in self.hosts:
       return
 
-    self.hosts[mac] = port
+    self.hosts[mac] = port_id
     self.logger.info(
-      "Learning: "+mac+" attached to ( "+str(port)+" )"
+      "Learning: "+mac+" attached to ( "+str(port_id)+" )"
     )
 
   def port_for_mac(self, mac):
@@ -25,6 +25,16 @@ class NetworkInformationBase():
       return self.hosts[mac]
     else:
       return None
+
+  def mac_for_port(self, port_id):
+    for mac in self.hosts:
+      if self.hosts[mac] == port_id:
+        return mac
+    return None
+
+  def unlearn(self, mac):
+    if mac in self.hosts:
+      del self.hosts[mac]
 
   def all_mac_port_pairs(self):
     return [ (mac, self.hosts[mac]) for mac in self.hosts.keys() ]
@@ -35,13 +45,13 @@ class NetworkInformationBase():
   def set_ports(self, list_p):
     self.ports = list_p
 
-  def add_port(self, p):
-    if p not in ports:
-      self.ports.append(p)
+  def add_port(self, port_id):
+    if port_id not in ports:
+      self.ports.append(port_id)
 
-  def delete_port(self, p):
-    if p in ports:
-      self.ports.remove(p)
+  def delete_port(self, port_id):
+    if port_id in ports:
+      self.ports.remove(port_id)
 
-  def all_ports_except(self, in_port):
-    return [p for p in self.ports if p != in_port]
+  def all_ports_except(self, in_port_id):
+    return [p for p in self.ports if p != in_port_id]

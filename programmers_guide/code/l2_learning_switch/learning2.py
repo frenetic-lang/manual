@@ -1,5 +1,4 @@
 import sys, logging
-sys.path.append('/home/vagrant/src/frenetic/lang/python')
 import frenetic
 from frenetic.syntax import *
 from ryu.lib.packet import ethernet

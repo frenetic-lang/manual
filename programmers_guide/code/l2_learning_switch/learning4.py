@@ -4,7 +4,7 @@ from frenetic.syntax import *
 from ryu.lib.packet import ethernet
 from network_information_base import *
 
-class LearningApp3(frenetic.App):
+class LearningApp4(frenetic.App):
 
   client_id = "l2_learning"
 
@@ -57,10 +57,21 @@ class LearningApp3(frenetic.App):
       actions = [ Output(Physical(p)) for p in nib.all_ports_except(port_id) ]
     self.pkt_out(dpid, payload, actions )
 
+  def port_down(self, dpid, port_id):
+    self.nib.unlearn( self.nib.mac_for_port(port_id) )
+    self.nib.delete_port(port_id)
+    self.update(self.policy())
+
+  def port_up(self, dpid, port_id):
+    # Just to be safe, in case we have old MACs mapped to this port
+    self.nib.unlearn( self.nib.mac_for_port(port_id) )
+    self.nib.add_port(port_id)
+    self.update(self.policy())
+
 if __name__ == '__main__':
   logging.basicConfig(\
     stream = sys.stderr, \
     format='%(asctime)s [%(levelname)s] %(message)s', level=logging.INFO \
   )
-  app = LearningApp3()
+  app = LearningApp4()
   app.start_event_loop()  
