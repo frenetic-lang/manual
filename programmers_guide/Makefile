@@ -20,6 +20,10 @@ all: frenetic_programmers_guide.pdf
 %.tex: %.dat
 	./dat2tex $< > $@
 
+# Set up a phony rule for this.  DOn't know why latexmk is trying to build it
+frenetic_prorammers_guide.pyg:
+	echo "Doing nothing"
+
 # MAIN LATEXMK RULE
 
 # -pdf tells latexmk to generate PDF directly (instead of DVI).
@@ -30,7 +34,7 @@ all: frenetic_programmers_guide.pdf
 # missing file reference and interactively asking you for an alternative.
 
 frenetic_programmers_guide.pdf: frenetic_programmers_guide.tex
-	latexmk -pdf -pdflatex="pdflatex -interaction=nonstopmode" -use-make frenetic_programmers_guide.tex
+	latexmk -verbose -pdf -pdflatex="pdflatex -shell-escape -interaction=nonstopmode" -use-make frenetic_programmers_guide.tex
 
 clean:
 	latexmk -CA

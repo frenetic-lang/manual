@@ -1,10 +1,181 @@
-\chapter{Handling Vlans}
+% !TEX root = frenetic_programmers_guide.tex
 
-\section{Vlan Uses}
- \label{handling_vlans:uses}
+\chapter{Handling VLANs}
 
-\section{Design}
+\section{VLAN Uses}
+\label{handling_vlans:uses}
 
-\section{Maintaining Separate Vlan Tables}
+Back in the late 1990's when LAN switching became more prevalent, network architects ran into balancing problems.
+Enterprise divisions and departments wanted to keep their 
+LANs separate for security and speed reasons.  For example, departments that generated heavy traffic 
+during certain times of the month (like the Accounting department) needed to be segregated from others
+to prevent intolerable slowdowns in other departments.  
 
-\section{Tagging and Untagging}
+The problem was network boundaries had to match physical switch boundaries.  If you bought switches with
+48 ports, and a department had 12 hosts, then 36 would remain unused.  Or, worse, if a department grew from 
+48 to to 49 ports, you had to make an emergency network buy.  
+
+Networks often solved these problems by adding routers, splitting department subnets and letting the 
+routers handle traffic between them.  But routing can be expensive and slow, especially for large 
+bursts of traffic.  Routing makes sense between networks you want to keep segregated, but it's
+overkill between two hosts that you know you want to keep together.
+
+Virtual LAN's, called VLAN's, evolved to solve these problems.  You can think of a VLAN as a logical 
+network, mappable onto physical switches.  A VLAN is like an elastic switch -- you assign real ports to 
+a particular VLAN, then can add or remove them at will.  
+
+VLANs can span multiple switches.  So if you needed that 49th port for a department, you could assign 
+an unused port on a different switch to that VLAN, and the host on it would act as if it were connected to 
+the same switch.  Of course, there's technically more to it than that, especially since you need to get the
+packet from one switch to the other.  But as a network operator, VLANs freed you from worrying about
+those details.  
+
+OpenFlow-based switches and Frenetic can integrate with standard VLAN technology easily.  In this 
+chapter, we'll first simulate a simple VLAN in software.  Then we'll use standard 802.1Q VLANs to 
+make a more flexible setup.  Then we'll use VLAN technology between switches.  
+
+\section{A Simple, Fixed VLAN}
+
+You've probably noticed that, as we're designing networking applications we start with something 
+static and hard-coded, then gradually move to something configurable and dynamic.  This kind of 
+organic growth makes network application design more agile.  Trying to design and implement everything
+at once tends to make debugging difficult.
+
+So with VLANs, we'll start with a simple rule:
+
+\begin{itemize}
+\item Odd-numbered ports (1, 3, 5, \ldots) will get mapped to VLAN 1001
+\item Even-numbered ports (2, 4, 6, \ldots) will get mapped to VLAN 1002
+\end{itemize}
+
+The VLAN ids 1001 and 1002 will only be used internally for this first application.  Later, we'll use
+them as actual 802.1Q VLAN ids, since they fit into the range 1..4096.  
+
+Hosts in each VLAN will talk only to hosts in their own VLAN, never to hosts in the other VLAN.  We'll talk
+about how to connect the two VLANs together a little later.  
+
+So in NetKAT, the L2 switch basic rule looks like this:
+
+\begin{minted}{python}
+Filter(EthDstEq("11:11:11:11:11:11")) >> SetPort(2)
+\end{minted}
+
+Note that the destination, port 2, is on VLAN 1002, to which all even-numbered ports belong.  
+To segregate the networks, we'll simply extend the rule to look like this:
+
+\begin{minted}{python}
+PortEq(2,4,6,8,10) >> Filter(EthDstEq("11:11:11:11:11:11")) >> SetPort(2)
+\end{minted}
+
+Where we cobble together $2, 4, 6\ldots$ from the even-numbered ports we know about on the switch.  
+
+If the destination is unknown, instead of flooding packets out \emph{all} ports of the switch, 
+we'll flood over ports of the switch \emph{in the same VLAN}.  In other words, the Packet Out action will be:
+
+\begin{minted}{python}
+Output(Physical(2)) | Output(Physical(4)) | ...
+\end{minted}
+
+We'll add some methods onto the \python{NetworkInformationBase} object to do some VLAN mapping.  The following
+code is in \codefilename{code/handling_vlans/network_information_base_static.py}:
+
+\inputminted[firstline=60]{python}{code/handling_vlans/network_information_base_static.py}
+
+The \python{policy_for_dest} method gets extended with the new filtering.  
+The following
+code is in \codefilename{code/handling_vlans/vlan1.py}:
+
+\inputminted[firstline=23,lastline=30]{python}{code/handling_vlans/vlan1.py}
+
+And the \python{packet_in} handler does some extra VLAN handling.  Note that if the destination port is already
+learned, we verify it's connected to the same VLAN as the source.  That way, hosts cannot just forge 
+destination MAC addresses in the other VLAN and subvert security.  
+
+\inputminted[firstline=43,lastline=73]{python}{code/handling_vlans/vlan1.py}
+
+Otherwise, learning switch internals stay the same.  Using a \python{single,4} topology in Mininet,
+a pingall:
+
+\begin{minted}{console}
+mininet> pingall
+*** Ping: testing ping reachability
+h1 -> X h3 X
+h2 -> X X h4
+h3 -> h1 X X
+h4 -> X h2 X
+*** Results: 66% dropped (4/12 received)
+mininet>
+\end{minted}
+
+reveals that only odd-numbered ports talk to odd-numbered ports, and only even-numbered ports talk to
+even-numbered ports.  We now have two segregated VLANs.
+
+\section{Standard, Dynamic VLANs}
+
+So now we want to make our setup a little more flexible.  Our program effectively codes the port-to-VLAN
+mappings.  We \emph{could} also store this mapping in a configuration file or a database.  But even that's
+too static.  We want network operators to be able to change VLAN-to-port mappings on the fly, simply
+by changing the interface configuration on the switch.
+
+So how are VLANs assigned to ports?  The procedure varies from switch to switch, but in most cases you
+create an \emph{untagged} interface.  On an HP switch, for example, you configure the interface information:
+
+\begin{minted}{console}
+coscintest-sw-ithaca# config
+coscintest-sw-ithaca(vlan-1)# vlan 1001
+coscintest-sw-ithaca(vlan-1001)# untagged A1
+\end{minted}
+
+This assigns the port A1 to VLAN 1001.  On OpenVSwitch, which is the OpenFlow switch we're using under Mininet, 
+the configuration is similar:
+
+\begin{minted}{console}
+mininet> sh ovs-vsctl set port s1-eth1 tag=1001
+mininet> sh ovs-vsctl set port s1-eth2 tag=1002
+mininet> sh ovs-vsctl set port s1-eth3 tag=1001
+mininet> sh ovs-vsctl set port s1-eth4 tag=1002
+mininet> sh ovs-vsctl show
+ae82ea91-2820-4b9f-9b01-fd8e897675b9
+    Bridge "s1"
+        Controller "tcp:127.0.0.1:6633"
+        Controller "ptcp:6634"
+        fail_mode: secure
+        Port "s1-eth4"
+            tag: 1002
+            Interface "s1-eth4"
+        Port "s1"
+            Interface "s1"
+                type: internal
+        Port "s1-eth2"
+            tag: 1002
+            Interface "s1-eth2"
+        Port "s1-eth1"
+            tag: 1001
+            Interface "s1-eth1"
+        Port "s1-eth3"
+            tag: 1001
+            Interface "s1-eth3"
+    ovs_version: "2.1.3"
+\end{minted}
+
+That means any packets going into this port without any VLAN
+information (i.e. untagged) are implicitly tagged with a fixed VLAN id.   This VLAN id is visible in NetKAT
+predicates, and in the \python{packet_in} hook, even though they technically don't belong to the 
+packet that entered the switch.  (This is a rare instance where packet modifications are applied
+before Frenetic gets ahold of them.)
+
+Outgoing packets on these ports have VLAN information stripped from them.  That's because we generally 
+want hosts to be encumbered by VLAN information.  This allows us to move the host from one VLAN to another
+without reconfiguring it.  
+
+Learning VLAN-to-port mappings is very similar to learning MAC-to-port mappings.  In fact, 
+we can do it all at the
+same time.  We assume that an incoming packet for port $p$ with a VLAN tag of $v$ can be learned as a 
+VLAN-to-port mapping.  If a port is ever reassigned to another VLAN, the same \python{port_down} and
+\python{port_up} hooks will be fired as for MAC moves, so we can unlearn the VLAN mappings at the same
+time.  
+
+\section{Multiple Switches}
+
+\section{Trunking}
+

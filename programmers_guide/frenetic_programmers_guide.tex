@@ -13,6 +13,9 @@
 \usepackage{natbib}
 
 \newcommand{\netkat}[1]{\mintinline{python}{#1}}
+\newcommand{\python}[1]{\mintinline{python}{#1}}
+\newcommand{\codefilename}[1]{\mintinline{python}{#1}}
+
 \setminted[python]{frame=lines, fontsize=\footnotesize}
 \setminted[console]{frame=lines, fontsize=\footnotesize}
 \graphicspath{ {./omnigraffle/} }
@@ -36,12 +39,12 @@
 \include{introduction_to_netkat}
 \include{netkat_principles}
 \include{l2_learning_switch}
-\include{load_balancer}
 \include{handling_vlans}
+\include{spanning_tree_alternatives}
+\include{load_balancer}
 \include{gathering_statistics}
 \include{sdn_development_tools}
 \include{network_address_translation}
-\include{spanning_tree_alternatives}
 \include{routing}
 \include{modularization}
 \include{frenetic_rest_api}
