@@ -64,7 +64,7 @@ Note that the destination, port 2, is on VLAN 1002, to which all even-numbered p
 To segregate the networks, we'll simply extend the rule to look like this:
 
 \begin{minted}{python}
-PortEq(2,4,6,8,10) >> Filter(EthDstEq("11:11:11:11:11:11")) >> SetPort(2)
+Filter(PortEq(2,4,6,8,10)) >> Filter(EthDstEq("11:11:11:11:11:11")) >> SetPort(2)
 \end{minted}
 
 Where we cobble together $2, 4, 6\ldots$ from the even-numbered ports we know about on the switch.  
@@ -103,7 +103,7 @@ h1 -> X h3 X
 h2 -> X X h4
 h3 -> h1 X X
 h4 -> X h2 X
-*** Results: 66% dropped (4/12 received)
+*** Results: 66\% dropped (4/12 received)
 mininet>
 \end{minted}
 
@@ -128,6 +128,14 @@ coscintest-sw-ithaca(vlan-1001)# untagged A1
 
 This assigns the port A1 to VLAN 1001.  On OpenVSwitch, which is the OpenFlow switch we're using under Mininet, 
 the configuration is similar:
+
+\begin{quotation}
+\emph{NOTE: The following tag setting commands don't seem to work correctly on the OpenVSwitch version found on
+Frenetic VM.  Packet In messages have no VLAN tag.  One nasty workaround is to use a custom Mininet 
+topology, where a separate driver attached to an IP address on each Mininet host sends VLAN-tagged packets.
+This is not only a pain to model, but it's not how real OpenFlow switches (like the Dell and HP) handle
+VLANs.  }
+\end{quotation}
 
 \begin{minted}{console}
 mininet> sh ovs-vsctl set port s1-eth1 tag=1001
@@ -175,7 +183,58 @@ VLAN-to-port mapping.  If a port is ever reassigned to another VLAN, the same \p
 \python{port_up} hooks will be fired as for MAC moves, so we can unlearn the VLAN mappings at the same
 time.  
 
-\section{Multiple Switches}
+We'll store the VLAN-to-port mappings in a Python dictionary, similar to our MAC-to-port mappings.  
+One difference is the values of this dictionary will be lists, since a VLAN (the key of our dictionary)
+will be assigned to many ports.  This code will will replace our static VLAN view in 
+\codefilename{code/handling_vlans/network_information_base_static.py}:
 
-\section{Trunking}
+\inputminted[firstline=65]{python}{code/handling_vlans/network_information_base_dynamic.py}
 
+Then we tweak the \python{learn} method to learn both MACs and VLANs:
+
+\inputminted[firstline=13,lastline=24]{python}{code/handling_vlans/network_information_base_dynamic.py}
+
+And in the \python{delete_port} method, we clean up any lingering VLAN-to-port mappings for that port:
+
+\inputminted[firstline=55,lastline=60]{python}{code/handling_vlans/network_information_base_dynamic.py}
+
+Since we now have packets tagged with VLANs, the NetKAT policies no longer need to reference list of ports.
+They will change to look like:
+
+\begin{minted}{python}
+Filter(VlanEq(1002)) >> Filter(EthDstEq("11:11:11:11:11:11")) >> SetPort(2)
+\end{minted}
+
+Which we enshrine in the \python{policy_for_dest} method, listed in 
+\codefilename{code/handling_vlans/vlan2.py}:
+
+\inputminted[firstline=23,lastline=29]{python}{code/handling_vlans/vlan2.py}
+
+In the \python{packet_in} handler, we read the VLAN from the packet instead of precomputing it:
+
+\inputminted[firstline=49,lastline=54]{python}{code/handling_vlans/vlan2.py}
+
+And now our switch handles VLANs dynamically.  You can create new VLANs, assign ports to them, rearrange or
+dismantle them altogether, all without restarting the network application.  
+
+\section{Summary}
+
+Virtual LANs, or VLANs, introduce a level of indirection in creating a network.  Before them, physical
+switches forced physical boundaries on the design.  Overprovisioning meant many ports stood unused while 
+other switches were filled to the brim.  
+
+In this chapter we created:
+
+\begin{itemize}
+\item An application that simulates VLANs algorithmically
+\item And an extnded, dynamic application that reads VLAN information from packets and adjust accordingly, 
+similar to our learning switch.
+\end{itemize}
+
+Note that you can combine these two approaches.  You can enforce certain rules, such as "Ports 1-35 will always
+be access ports assigned to VLANs 1000-1999, ports 35 and up will be on the management VLAN 1."  This is an
+excellent use case for SDN -- your rules will never be hampered by an inflexible switch.
+
+Up until this point, we have been working with one switch, which makes things easy to design.  But multiple
+switches will extend the range of our network greatly.  They come with their own sets of challenges though,
+which we'll work through in our next chapter.  

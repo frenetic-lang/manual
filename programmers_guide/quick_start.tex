@@ -2,15 +2,25 @@
 
 \chapter{Quick Start}
 
-In this book, you will use Frenetic to create a full-programmable network.  For the moment, let's assume you're familiar with Software Defined Networking and the OpenFlow protocol, and just dive right in.  (If you're not, don't worry!  We'll introduce some bedrock concepts in the next chapter and explain everything that happened here.)  
+In this book, you will use the open source software Frenetic to create a fully programmable network.  
+For the moment, let's assume you're familiar with Software Defined Networking and the OpenFlow protocol, 
+and just dive right in.  (If you're not, don't worry!  
+We'll introduce some bedrock concepts in the next chapter and explain everything that happened here.)  
 
 \section{Installation}
 
-There are several ways to get started with Frenetic, but the easiest is to use Frenetic VM.  Frenetic itself only runs on Linux, but the Frenetic VM will run on any host system that supports VirtualBox, including Windows, Mac OS X and practically any version of Linux itself.   Keeping Frenetic it in its own VM will keep your own system clean and neat.  Later on, if you want to install Frenetic on a bare metal Ubuntu Linux server or network device, you can use the instructions in \ref{productionalizing:install}.  
+There are several ways to get started with Frenetic, but the easiest is to use Frenetic VM.  
+Frenetic itself only runs on Linux, but the Frenetic VM will run on any host system that supports 
+VirtualBox, including Windows, Mac OS X and practically any version of Linux.   
+Keeping Frenetic it in its own VM will keep your own system clean and neat.  
+Later on, if you want to install Frenetic on a bare metal Ubuntu Linux server or network device, 
+you can use the instructions in \ref{productionalizing:install}. 
+
+First you'll need the following prerequisites: 
 
 \begin{itemize}
 \item Install VirtualBox from https://www.virtualbox.org/wiki/Downloads.  Use the latest version platform package appropriate for your system.  
-\item Install Vagrant at http://www.vagrantup.com/downloads.  Vagrant automates the process of building VM's from scratch, and Frenetic VM uses it to build its own environment.  This is more reliable than downloading a multi-gigabyte VM file.   
+\item Install Vagrant at http://www.vagrantup.com/downloads.  Vagrant automates the process of building VM's from scratch, and Frenetic VM uses it to build its own environment.  
 \item Install Frenetic VM from https://github.com/frenetic-lang/frenetic-vm.  You can simply use the Download Zip button and unzip to an appropriate directory on your system, like frenetic-vm.  Then from a terminal or command prompt:
 \end{itemize}
 
@@ -27,12 +37,11 @@ The build process may take 15 minutes to an hour, depending on the speed of your
 At the end of the process you will have a working copy of Frenetic with lots of useful open source infrastructure:
 
 \begin{description}
-\item[Mininet] software builds a test network inside of Linux.  
-It can simulate a topology with many switches and hosts.  
+\item[Mininet] software simulates a test network inside of Linux.  
+It can model a topology with many switches and hosts.  
 Writing a network application and throwing it into production is \ldots well, pretty risky, but running it on Mininet first can be a good test for how it works beforehand.  
-We'll use it throughout this book.  
 \item[Wireshark] captures and analyzes network traffic.  
-It's a great debugging tool, and very necessary for sifting through large amounts of data.
+It's a great debugging tool, and very useful for sifting through piles of network packets.
 \item[Frenetic].  This layer provides an easy-to-use programmable layer on top of ODL.  Its main job is to shuttle OpenFlow messages between ODL and your application, and to translate the language NetKAT into OpenFlow flow tables.  We'll see the differences between the two as we go.
 \end{description}
 
@@ -46,7 +55,7 @@ So let's dive right in.  We'll set up a Mininet network with one switch and two 
  $ cd /path/to/frenetic-vm
 \end{minted}
  
-Then start up the VM:
+And start up the VM:
 
 \begin{minted}{console}
 $ vagrant up
@@ -86,7 +95,7 @@ Last login: Tue Oct  6 10:35:06 2015 from 10.0.2.2
 vagrant@frenetic:~$ 
 \end{minted}
 
-So you are now working inside an Ubuntu-based VM.  You don't really need to know Ubuntu, but just know that Mac OS and Windows commands won't necessarily work here.  
+So you are now working inside an Ubuntu-based VM.  
 
 Let's start up a Mininet network with one switch and two nodes.
 
@@ -111,11 +120,16 @@ s1 ...
 mininet>
 \end{minted}
 
+The topology Mininet constructs looks like this:
+
+\includegraphics{simple_network}
+
 The prompt changes to {\tt mininet>} to show your working in Mininet.  
-The error message {\tt Unable to contact controller at 127.0.0.1:6633} looks a little ominous, but not fatal.  
+The error message {\tt Unable to contact controller at 127.0.0.1:6633} looks a little ominous, but it's not fatal.  
 
 You now have an experimental network with two hosts named h1 and h2.  
-To see if there's connectivity between them, use the command \netkat{console}{h1 ping h2} which means ``On host h1, ping the host h2.''
+To see if there's connectivity between them, use the command \netkat{h1 ping h2} which means 
+``On host h1, ping the host h2.''
 
 \begin{minted}{console}
 mininet> h1 ping h2
@@ -129,7 +143,8 @@ From 10.0.0.1 icmp_seq=3 Destination Host Unreachable
 pipe 3
 \end{minted}
 
-The ping gets executed over and over again, but it's clearly not working.  So we press CTRL-C to stop and 
+The ping gets executed over and over again, but the \netkat{Destination Host Unreachable} message
+shows it's clearly not working.  So we press CTRL-C to stop and 
 quit out of Mininet:
 
 \begin{minted}{console}
@@ -137,11 +152,13 @@ mininet> quit
 \end{minted}
 
 So by default, hosts can't talk over the network to each other.  We're going to fix that by writing a {\it network
-application}.    Frenetic will act as the controller on the network, and the network application tells Frenetic how to act.
+application}.    Frenetic will act as the controller on the network, and the network application tells 
+Frenetic how to behave.
 
 \section{A Repeater}
 
-You write your network application in Python, using the Frenetic framework.  Mininet is currently running in our VM under its own terminal window, and we can leave it like that.   
+You will write your network application in Python, using the Frenetic framework.  
+Mininet is currently running in our VM under its own terminal window, and we can leave it like that.   
 We'll do our programming in another window, so start up another one and log into our VM:
 
 \begin{minted}{console}
@@ -157,14 +174,6 @@ vagrant@frenetic:~$
 Get the sample code from the Frenetic Github repository:
 
 \begin{minted}{console}
-vagrant@frenetic:~$ mkdir tutorial
-vagrant@frenetic:~$ cd tutorial
-\end{minted}
-
-Now we'll write our first network application.
-Or rather \ldots you can follow along in the sample code for this app.  
-
-\begin{minted}{console}
 vagrant@frenetic:~$ git clone https://github.com/frenetic-lang/manual
 Cloning into 'manual'...
 remote: Counting objects: 102, done.
@@ -176,12 +185,12 @@ vagrant@frenetic:~$ cd manual/programmers_guide
 vagrant@frenetic:~/manual/programmers_guide$ cd code/quick_start
 \end{minted}
 
-The following code is in \texttt{code/quick\_start/repeater.py}:
+The following code is in \codefilename{quick\_start/repeater.py}:
 
 \inputminted[linenos]{python}{code/quick_start/repeater.py}
 
-Lines 1-4 are pretty much the same in every Frenetic network application.
-Similarly, lines 17-18 are similar in most cases. 
+Lines 1-2 are pretty much the same in every Frenetic network application.
+Similarly, lines 15-16 are similar in most cases. 
  The meat of the application is an object class named RepeaterApp, whose base class is \netkat{frenetic.App}.
 A frenetic application can hook code into different points of the network event cycle.
 In our Repeater network app, the only two events we're interested in here are
@@ -189,13 +198,15 @@ In our Repeater network app, the only two events we're interested in here are
  \netkat{packet_in}, which is fired every time a packet
 bound for a controller arrives.
 
-The code in \netkat{connected} merely directs the switch to send all packets to our application.
-The interesting code is in \netkat{packet_in} and implements a {\it repeater}.
-A repeater is the oldest type of network device, and is sometimes called a {\it hub}. 
-In a repeater, if a packet enters on port 1, it should get copied out to port 2.  
+The code in \netkat{connected} is called a \emph{handler} and here it 
+merely directs the switch to send all packets to our application.
+The code in \netkat{packet_in} is also a handler, and here it implements a {\it repeater}.
+A repeater, sometimes called a {\it hub}, is the oldest type of network device. 
+In a 2-port repeater, if a packet enters on port 1, it should get copied out to port 2.  
 Conversely, if a packet enters on port 2, it should get copied out to port 1.
 If there were more ports in our switch, we'd write a more sophisticated repeater -- one that
-outputs the packet to all ports except the one on which it arrived (called the {\it ingress port}).  
+outputs the packet to all ports except the one on which it arrived (called the {\it ingress port}). 
+We'll do that in section \ref{netkat_principles:efficient_sdn} 
 
 \netkat{pkt_out} is a method provided by Frenetic to actually send the packet out the switch.  It takes three 
 parameters: a switch, a packet, and a policy.  
@@ -298,7 +309,10 @@ You can see evidence of this in the Frenetic window:
 
 You now have a working SDN, or Software Defined Network!   Like much software, it works in layers:
 
+\begin{figure}[h]
+\centering
 \includegraphics{frenetic_architecture}
+\end{figure}
 
 \begin{enumerate}
 \item At the bottom is your switches and wires.  In our lab setup, Mininet and OpenVSwitch is a substitute for this layer.
@@ -310,7 +324,6 @@ We wrote a very simple network application that emulates a network repeater.
 It responds to the \netkat{packet_in} event coming from the switches through Frenetic when a packet 
 arrives at the switch.  
 And it sends the \netkat{pkt_out} message to send the packet back out through Frenetic to the switch.  
-Frenetic-vm makes installing and testing all the pieces straightforward. 
 When you're done, your network application can be deployed to a real production network.
 
 Obviously you can do much more than just simple repeating with SDN!  

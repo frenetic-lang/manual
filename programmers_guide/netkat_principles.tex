@@ -5,6 +5,7 @@
 \newtheorem{principle}{Principle}
 
 \section{Efficient SDN}
+\label{netkat_principles:efficient_sdn}
 
 In a nutshell, the \texttt{packet\_in()} hook receives network packets and the \texttt{pkt\_out()} command sends
 network packets.  
@@ -30,7 +31,8 @@ So let's go back to our Repeater application:
 Here, \emph{every single packet} goes from the switch to Frenetic to the net app and back out. 
 That's horribly inefficient, and unnecessarily so since all the decisions can be made inside the switch.
 So let's write a more efficient one.
-The following code is in \texttt{code/netkat\_principles/repeater2.py}:
+
+The following code is in \codefilename{netkat_principles/repeater2.py}:
 
 \inputminted{python}{code/netkat_principles/repeater2.py}
 
@@ -39,10 +41,9 @@ arrive at the controller.
 All of the configuration of the switch is done up front.
 
 The \texttt{Filter(PortEq(1)) >> SetPort(2)} policy is a pretty common pattern in NetKAT.
-You first whittle down the incoming flood of packets to a certain subset with \texttt{Filter} and a 
-predicate.
+You first whittle down the incoming flood of packets to a certain subset with \texttt{Filter}.
 Then you apply a policy or series of policies, \texttt{SetPort} being the most popular.
-We'll look at combining policies in the section~\ref{section:combining}.
+We'll look at combining policies in section~\ref{section:combining}.
 
 If you've worked with OpenFlow, you might wonder how the NetKAT rules get translated to OpenFlow rules.
 In this example, it's fairly straightforward.
@@ -73,7 +74,7 @@ It's the same thing that happens with most compiled languages -- the rules that 
 are non-trivial. 
 If they were easy, you wouldn't need a compiler to do it!
 
-There are two problems with RepeaterApp2:
+There are two problems with \python{RepeaterApp2}:
 
 \begin{itemize}
   \item It works on a two port switch, but not anything bigger.  
@@ -81,9 +82,9 @@ There are two problems with RepeaterApp2:
   to be numbered 1 and 2 \ldots otherwise, the whole program doesn't work.
   And those ports need to be functioning.
   \item More subtly, this program can drop packets.  
-  There is a short lag in between when the switches come up and the \texttt{self.update()} installs
+  There is a short lag between when the switches come up and the \texttt{self.update()} installs
   the policies. 
-  During this lag, packets will arrive at the controller by default and get dropped by the 
+  During this lag, packets will arrive at the controllerand get dropped by the 
   default \texttt{packet\_in} handler in Frenetic.   
 \end{itemize}
 
@@ -100,24 +101,31 @@ When do you use one or the other?
 To illustrate this, let's go back to NetKAT basics.  At the lowest level there are two types
 of building blocks: filters and modifications.  
 
+\begin{figure}[h]
+\centering
 \includegraphics{netkat_policy_building_blocks}
+\end{figure}
 
 A filter, shown at the top, takes as input a stream of packets.  Packets that match its criteria are
-forwarded, packets that don't match are dropped.  Two special filters, \texttt{id} and \texttt{drop}, 
-let through all or no packets respectively.  
+sent to the next policy, packets that don't match are dropped.  Two special policies, 
+\texttt{id} and \texttt{drop}, let through all or no packets respectively.  
 
-A modification changes packet header values.  In the bottom example, the \texttt{TcpSrcPort} header gets
-changed to 80.  This modification, but rather happens on a logical copy of the packet.  That means subsequent \texttt{Filters} match against the original value in the header, not the one we just changed it to.  But most of the 
-time, you can ignore this subtlety.
+A modification, meaning any NetKAT policy beginning with \python{Set}, 
+changes packet header values.  In the bottom example, the \texttt{TcpSrcPort} header gets
+changed to 80.  This modification happens on a logical copy of the packet.  That means subsequent \texttt{Filters} 
+match against the original \netkat{TcpSrcPort} 
+value in the header, not the one we just changed it to.  But most of the 
+time, you can ignore this subtlety because filters precede modifications.
 
 Modifications to different headers can generally be specified in any order.  If two modifications to the same header 
 value occur one after the other, the last one wins. 
 
 You combine these building blocks with \texttt{Seq} and \texttt{Union}.
+Here is a \texttt{Seq} of two policies, a filter and a modification.   
 
-\includegraphics{netkat_policy_combinators_seq}
+\includegraphics[width=\linewidth]{netkat_policy_combinators_seq}
 
-Here is a \texttt{Seq} of two policies, a filter and a modification.   In sequences, policies
+In sequences, policies
 are chained together in a straight line, and packets travel through each of one of the policies in order.  
 Combining a filter plus modifications is very common in NetKAT programs, and we generally
 use \texttt{Seq} to combine them into a \emph{rule}.  
@@ -137,21 +145,22 @@ In general, putting all the filters before the actions in a sequence chain is th
 The following principle is a good guideline:  
 
 \begin{principle}
-Use \texttt{Seq} or \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
+Use \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
 \end{principle}
 
 \texttt{SetPort} is an exception to the rule that we'll see in a minute.  
+Here is a Union of policies.
 
 \includegraphics{netkat_policy_combinators_union}
 
-A \texttt{Union} of policies makes several logical copies of policies and sends the copy of each packet
-through each policy in parallel.  In the bottom example, the two incoming packets are copied three times, one
-for each rule.  In this case, the top filter only forwards a copy of the first packet.
-The middle filter only forwards a copy of the second packet.
+A \texttt{Union} of policies makes logical copies of packets and sends the copy of each packet
+through each policy in parallel.  In the above example, the two incoming packets are copied three times, one
+for each rule.  In this case, the top filter only forwards a copy of the first packet matching \netkat{PortEq(1)}.
+The middle filter only forwards a copy of the second packet  matching \netkat{PortEq(2)}
 The bottom filter doesn't forward any packets at all.  
 
 \begin{principle}
-Use \texttt{Union} or \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
+Use \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
 Use \texttt{IfThenElse} to combine rules that DO overlap. 
 \end{principle}
 
@@ -163,7 +172,7 @@ programs into flow tables, and these flow tables generally work through sophisti
 and pipelines that eliminate actual packet copying.  So don't worry about stringing 20,000 policies
 with a \texttt{Union}.  Your switch can handle it.   
 
-Now \texttt{SetPort} is a little different.  Other modifications like \texttt{SetTcpDstPort} act on a single packet at a time.
+\texttt{SetPort} is a little different.  Other modifications like \texttt{SetTcpDstPort} act on a single packet at a time.
 A single \texttt{SetPort} is like this - we merely want to change the egress port of the packet itself.  But if 
 you want to send it out multiple ports at once, as in flooding, you need to use multiple \texttt{SetPort} actions.
 
@@ -196,7 +205,7 @@ Suppose you have two rules:
   \item \texttt{Filter(PortEq(2)) >> SetPort(1)} Sends port 2 traffic out port one.
 \end{itemize}
 
-\includegraphics{netkat_overlapping_union}
+\includegraphics[width=\linewidth]{netkat_overlapping_union}
 
 These two rules overlap.  A packet can both have a TCP destination port of 80 and
 arrive on switch 1, port 2.  What happens if we combine them with \texttt{Union}, and a packet
@@ -211,31 +220,41 @@ But that's probably not what you intended.  You probably want the HTTP rule to t
 sending rule.  In such cases,
 \texttt{IfThenElse} makes the precedence crystal clear:
 
-\texttt{IfThenElse(TcpDstPortEq(80), drop, Filter(PortEq(2)) >> SetPort(1))}
+\begin{minted}{python}
+IfThenElse(TcpDstPortEq(80), drop, Filter(PortEq(2)) >> SetPort(1))}
+\end{minted}
 
-\includegraphics{netkat_overlapping_if_then_else}
+\includegraphics[width=\linewidth]{netkat_overlapping_if_then_else}
 
 The predicate is tested, and if it matches, the first policy is performed, otherwise the second is performed.
 
 That's pretty powerful, and in fact we can write the repeater app to use \texttt{IfThenElse} instead of Union:
 
-\texttt{IfThenElse(PortEq(1), SetPort(2), Filter(PortEq(2)) >> SetPort(1) }
+\begin{minted}{python}
+IfThenElse(PortEq(1), SetPort(2), Filter(PortEq(2)) >> SetPort(1) 
+\end{minted}
 
 So why not just use \texttt{IfThenElse} for combining rules all the time?  In a real switch, you might have 
 hundreds of non-overlapping rules.  Writing them as:
 
-\texttt{IfThenElse(predicate1), action1, IfThenElse(predicate2, action2, IfThenElse...}
+\begin{minted}{python}
+IfThenElse(predicate1), action1, IfThenElse(predicate2, action2, IfThenElse #....
+\end{minted}
 
 is doable but a lot more verbose.  It also hides the fact that the rules are non-overlapping, and this is useful
 information when rummaging through an SDN app. 
 
-\texttt{IfThenElse} is really syntactic sugar.  The statement:
+\netkat{IfThenElse} is really syntactic sugar.  The statement:
 
-IfThenElse(pred, true\_policy, false\_policy)
+\begin{minted}{python}
+IfThenElse(pred, true_policy, false_policy)
+\end{minted}
 
 is just a shortcut for:
 
-Filter(pred) >> true\_policy | Filter(! pred) >> false\_policy
+\begin{minted}{python}
+Filter(pred) >> true_policy | Filter(~ pred) >> false_policy
+\end{minted}
 
 but it's a lot shorter and easier to understand, especially for programmers accustomed to seeing If-Then-Else
 constructs in other programming languages.
@@ -257,7 +276,7 @@ The first task requires us to inquire which ports a switch has.  Frenetic provid
 method that does exactly that.   The best time to call it is on the \texttt{connected()} hook since, at that
 point, Frenetic knows the switches and ports out there.
 
-The following code is in \texttt{code/netkat\_principles/repeater3.py}:
+The following code is in \texttt{netkat\_principles/repeater3.py}:
 
 \inputminted{python}{code/netkat_principles/repeater3.py}
 
@@ -299,7 +318,7 @@ vagrant@frenetic:~/workspace$ ~/src/frenetic/frenetic.native http-controller
  [INFO] Current uid: 1000
  [INFO] Successfully launched OpenFlow controller with pid 2035
  [INFO] Connecting to first OpenFlow server socket
- [INFO] Failed to open socket to OpenFlow server: (Unix.Unix_error "Connection refused" connect 127.0.0.1:8984)
+ [INFO] Failed to open socket to OpenFlow server: (Unix.Unix_error "...
  [INFO] Retrying in 1 second
  [INFO] Successfully connected to first OpenFlow server socket
  [INFO] Connecting to second OpenFlow server socket
@@ -321,11 +340,11 @@ The keys in this dictionary are the datapath ID's (dpid's) of each switch -- in 
 one switch with a dpid of 1.
 The value associated with the key is a list of ports that the switch has operational.  
 In this case, we have four ports labelled 1 through 4 (they will be in some random order in the list, as
-you see above).
+you see above in \python{[4, 2, 1, 3]}).
 
 Great!  Once we have the list of ports, we can construct policies.  If a packet comes in on port
 1, it should be repeated to all the ports that are not 1, e.g. 2, 3 and 4, and so on.   
-The policy, written out manually, will look like this:
+The NetKAT policy, written out manually, will look like this:
 
 \begin{minted}{python}
 Filter(PortEq(1)) >> (SetPort(2) | SetPort(3) | SetPort(4)) |
@@ -334,8 +353,9 @@ Filter(PortEq(3)) >> (SetPort(1) | SetPort(2) | SetPort(4)) |
 Filter(PortEq(4)) >> (SetPort(1) | SetPort(2) | SetPort(3))
 \end{minted}
 
-A combination of Frenetic and Python lists makes this.  Suppose you have the list named $sw$
-\texttt{[1; 2; 3; 4]} from the callback.   The following Python list comprehension:
+A combination of Frenetic and Python lists makes this easy to construct.  
+Suppose you have the list named \python{sw} with value 
+\python{[1, 2, 3, 4]} from the callback.   The following Python list comprehension:
 
 \begin{minted}{python}
 SetPort(p) for p in sw
@@ -376,7 +396,7 @@ You can pass a Python list of policies to either \texttt{Union} or \texttt{Seq},
 very large policies from component parts very quickly.  
 
 So here is our repeater that installs an initial configuration.
-The following code is in \texttt{code/netkat\_principles/repeater4.py}:
+The following code is in \codefilename{netkat_principles/repeater4.py}:
 
 \inputminted{python}{code/netkat_principles/repeater4.py}
 
@@ -385,10 +405,10 @@ that we haven't seen yet.  We could write an extremely long filter, filtering ou
 list, but since port numbers can be 32-bits long, that's gonna be pretty huge:
 
 \begin{minted}{python}
-Filter(PortEq(5, 6, 7, ...) >> SendToController("repeater_app")
+Filter(PortEq(5, 6, 7, ..., 4294967295) >> SendToController("repeater_app")
 \end{minted}
 
-It's easier just to write an overlapping rule.  Here id is a filter that matches all packets:
+It's easier just to write an overlapping rule.  Recall that \netkat{id} is a filter that matches all packets:
 
 \begin{minted}{python}
 id >> SendToController("repeater_app")
@@ -397,12 +417,12 @@ id >> SendToController("repeater_app")
 But obviously, this overlaps with the rules for known ports in our repeater.  So we use an \texttt{IfThenElse} to 
 resolve the overlap:
 
-\inputminted[firstline=18,lastline=35]{python}{code/netkat_principles/repeater5.py}
+\inputminted[firstline=16,lastline=33]{python}{code/netkat_principles/repeater5.py}
 
 We take this opportunity to save the port list in an instance variable \texttt{self.all\_ports}.  This instance variable
 is the beginning of a Network Information Base, or NIB -- it encapsulates the known state of the network
 at this time.  We're going to see the NIB a lot in future apps.  You can think of our app as a function with the
-NIB as input and a NetKAT program as output.  Funky!
+NIB as input and a NetKAT program as output.  
 
 Now how we do learn about new ports?  A packet arriving at \texttt{pkt\_in} will signal we're seeing a new port.
 So suppose we're seeing a packet on port 40.  If you think about, the entire NetKAT program will change from:
@@ -438,7 +458,7 @@ We could just drop it and hope the host is smart enough to resend it.  But that'
 very hospitable.  
 
 What if we just do a \texttt{pkt\_out} immediately afterward?  After all, we just installed a rule that
-will deal with appropriately, right?
+will deal with it appropriately, right?
 
 \begin{minted}{python}
   def packet_in(self, dpid, port_id, payload):
@@ -449,7 +469,6 @@ will deal with appropriately, right?
 
 There are two problems.  First, it's unclear what the action should be on \texttt{pkt\_out}.  If we send an empty 
 list of actions, the OpenFlow switch will interpret it as ``drop the packet.''.  
-
 Second, there's a timing problem.
 Even though we just sent a self.update, the call is asynchronous with no response when it's done updating the
 OpenFlow flow table.  It could take a microsecond, it could take an hour \ldots we just don't know.  
@@ -469,7 +488,7 @@ When you install a new switch policy, do not assume it'll be installed right awa
 We can solve this with two quick fixes.  One is to make a quick check that port has not actually be learned yet.
 The other is to add actions to pkt\_out that emulate the new rule.  
 
-Here's our final repeater program in \texttt{code/netkat\_principles/repeater5.py}:
+Here's our final repeater program in \codefilename{netkat_principles/repeater5.py}:
 
 \inputminted{python}{code/netkat_principles/repeater5.py}
 
@@ -518,11 +537,11 @@ Instead, program NetKAT policies to make most of the decisions inside the switch
 \end{principle}
 
 \begin{principle}
-Use \texttt{Seq} or \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
+Use \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
 \end{principle}
 
 \begin{principle}
-Use \texttt{Union} or \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
+Use \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
 Use \texttt{IfThenElse} to combine rules that DO overlap. 
 \end{principle}
 

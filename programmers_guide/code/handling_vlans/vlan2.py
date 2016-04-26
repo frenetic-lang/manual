@@ -17,15 +17,14 @@ class VlanApp2(frenetic.App):
       logging.info("Connected to Frenetic - Switches: "+str(switches))
       dpid = switches.keys()[0]
       self.nib.set_ports( switches[dpid] )
-      self.update( id >> SendToController("learning_app") )
+      self.update( id >> SendToController("vlan_app") )
     self.current_switches(callback=handle_current_switches)
 
   def policy_for_dest(self, mac_port):
     (mac, port) = mac_port
     mac_vlan = self.nib.vlan_of_port(port)
-    ports_in_vlan = self.nib.ports_in_vlan(mac_vlan)
     return \
-      Filter(PortEq(ports_in_vlan)) >> \
+      Filter(VlanEq(mac_vlan)) >> \
       Filter(EthDstEq(mac)) >> \
       SetPort(port)
 
@@ -36,7 +35,7 @@ class VlanApp2(frenetic.App):
     return \
       IfThenElse(
         EthDstNotEq( self.nib.all_learned_macs() ),
-        SendToController("learning_app"),
+        SendToController("vlan_app"),
         Union( self.policies_for_dest(self.nib.all_mac_port_pairs()) )
       )
 
@@ -49,11 +48,10 @@ class VlanApp2(frenetic.App):
 
     # Parse the interesting stuff from the packet
     ethernet_packet = self.packet(payload, "ethernet")
-    #vlan_packet = self.packet(payload, "vlan")
+    vlan_packet = self.packet(payload, "vlan")
     src_mac = ethernet_packet.src
     dst_mac = ethernet_packet.dst
-    logging.info("Ethernet type is "+str(ethernet_packet.ethertype))
-    src_vlan = 1001 #vlan_packet.vid
+    src_vlan = vlan_packet.vid
 
     # If we haven't learned the source mac, do so
     if nib.port_for_mac( src_mac ) == None:

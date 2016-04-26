@@ -17,7 +17,7 @@ class VlanApp1(frenetic.App):
       logging.info("Connected to Frenetic - Switches: "+str(switches))
       dpid = switches.keys()[0]
       self.nib.set_ports( switches[dpid] )
-      self.update( id >> SendToController("learning_app") )
+      self.update( id >> SendToController("vlan_app") )
     self.current_switches(callback=handle_current_switches)
 
   def policy_for_dest(self, mac_port):
@@ -36,7 +36,7 @@ class VlanApp1(frenetic.App):
     return \
       IfThenElse(
         EthDstNotEq( self.nib.all_learned_macs() ),
-        SendToController("learning_app"),
+        SendToController("vlan_app"),
         Union( self.policies_for_dest(self.nib.all_mac_port_pairs()) )
       )
 
