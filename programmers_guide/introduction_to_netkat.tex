@@ -281,12 +281,10 @@ number of interfaces, but they don't need to be consecutive.
 \\ \hline
 \texttt{IPProtoEq($p$)} & Matches packets whose IP Protocol is $p$, a number from 0-255.  
 Popular values are 1 for ICMP, 6 for TCP and 17 for UDP.  
-This match only makes sense when EthTypeEq(0x800, 0x806) (IP or ARP). 
 \\ \hline
 \texttt{IPSrcEq($addr$, $mask$)} & Matches packets whose IP source address is $addr$.  
 If $mask$ is provided, a number from 1-32, this matches all hosts on a network whose first $mask$ bits match the host.
 If it's omitted, the entire address is matched -- i.e. only one IP host.  
-This match only makes sense when EthTypeEq(0x800, 0x806) (IP or ARP). 
 \\ \hline
 \texttt{IPDstEq($addr$, $mask$)} & Matches packets whose IP destination address is $addr$.  
 Follows same rules as IpSrcEq.
@@ -395,7 +393,7 @@ Finally, there are a few special predicates:
 \bigskip
 
 Why would you need these?  
-They're useful for "catch all" rules that appear last in a list.
+They're useful for ``catch all'' rules that appear last in a list.
 A good example is our repeater, where we had an id rule that matched all packets and
 forwarded them to the controller.
 

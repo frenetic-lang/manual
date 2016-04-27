@@ -1,11 +1,510 @@
+% !TEX root = frenetic_programmers_guide.tex
+
 \chapter{Frenetic/NetKAT Reference}
 
-\section{Predicates}
- \label{netkat_reference:predicates}
+\section{NetKAT Predicates}
+\label{netkat_reference:predicates}
+
+\subsection{Primitives}
+
+\subsubsection{Drop}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{Drop} \\
+   & \texttt{false} \\ \\
+\textsc{Raw}    & \texttt{false}  \\ \\
+\textsc{REST} & \texttt{ \{ "type": "false" \} } 
+\end{tabularx}
+
+\python{Drop} matches no packets.  This is a \emph{predicate}, as opposed to the lower-case 
+equivalent \python{drop} 
+which is a \emph{policy} that drops all packets. 
+
+Note in Python, \python{Id} and \python{Drop} are the only predicates that don't require parantheses.
+
+\subsubsection{EthDst}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{EthDstEq("72:00:08:bc:5f:a0")}    & \texttt{EthDstNotEq("72:00:08:bc:5f:a0")} \\
+    & \texttt{EthDstEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")}  & \texttt{EthDstNotEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")} \\
+    & \texttt{EthDstEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])}  & \texttt{EthDstNotEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])} \\ \\
+\textsc{Raw}    & \texttt{ethDst = 125344472129440}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ethdst", "value": 125344472129440 \} }} 
+\end{tabularx}
+
+\python{EthDstEq} matches packets with a particular Ethernet MAC destination address, or from a set of addresses -- 
+if the 
+parameter is a list of addresses, there is an implicit OR between them.    
+
+In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
+boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+an integer.  
+
+\subsubsection{EthSrc}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{EthSrcEq("72:00:08:bc:5f:a0")}    & \texttt{EthSrcNotEq("72:00:08:bc:5f:a0")} \\
+    & \texttt{EthSrcEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")}  & \texttt{EthSrcNotEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")} \\
+    & \texttt{EthSrcEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])}  & \texttt{EthSrcNotEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])} \\ \\
+\textsc{Raw}    & \texttt{ethSrc = 125344472129440}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ethsrc", "value": 125344472129440 \} }} 
+\end{tabularx}
+
+\python{EthSrcEq} matches packets with a particular Ethernet MAC source address, or from a set of addresses -- 
+if the 
+parameter is a list of addresses, there is an implicit OR between them.    
+
+In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
+boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+an integer.  
+
+\subsubsection{EthType}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{EthTypeEq(0x800)}    & \texttt{EthTypeNotEq(0x800)} \\
+    & \texttt{EthTypeEq(0x800, 0x806)}  & \texttt{EthTypeNotEq(0x800, 0x806)} \\
+    & \texttt{EthTypeEq([0x800, 0x806])}  & \texttt{EthTypeNotEq([0x800, 0x806])} \\ \\
+\textsc{Raw}    & \texttt{ethTyp = 2048}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ethtype", "value": 2048 \} }} 
+\end{tabularx}
+
+\python{EthType} matches packets with a particular Ethernet frame type, or from a set of frame types -- if the
+parameter is a list of types, there is an implicit OR between them.  The frame type is a 32 bit 
+integer as defined by IEEE, and the common ones are listed at 
+http://www.iana.org/assignments/ieee-802-numbers/ieee-802-numbers.xhtml
+
+Python can accept any valid 32 bit integer representation for the frame type -- it's common to pass them
+as hexadecimal values because they're easy to remember.  You can also use constants defined in 
+\python{ryu.packet.ether_types}.  Raw and REST-based NetKAT requires them to be specified in
+decimal.
+
+Certain OpenFlow match rules have \emph{dependencies} on the Ethernet type.  
+In other words, it requires certain Ethernet type matches to be specified when other fields are matched.  For 
+example, if the IPv4 source address is matched, then an Ethernet Type match must also be specified as 
+IP, e.g. ethernet type 0x800.  This is not required in NetKAT - the Frenetic compiler will 
+automatically compile the correct dependencies for you. 
+
+With VLAN tagged packets, OpenFlow matches the
+type of the \emph{enclosed packet}.  So for example, an IP packet wrapped with a VLAN tag will match 
+\python{EthType(0x800)} even though the actual Ethernet type of the entire packet is 0x8100 (the 
+IEEE 802.1q Ethernet type for VLAN packets).  
+
+\subsubsection{Id}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{Id} \\
+   & \texttt{true} \\ \\
+\textsc{Raw}    & \texttt{true}  \\ \\
+\textsc{REST} & \texttt{ \{ "type": "true" \} } 
+\end{tabularx}
+
+\python{Id} matches all packets.  This is a \emph{predicate}, as opposed to the lower-case 
+equivalent \python{id} 
+which is a \emph{policy} that accepts all packets. 
+
+Note in Python, \python{Id} and \python{Drop} are the only predicates that don't require parantheses.
+
+\subsubsection{IPDst}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{IPDstEq("192.168.57.100")}    & \texttt{IPDstNotEq("192.168.57.100")} \\
+    & \texttt{IPDstEq("192.168.57.0", 24)}  & \texttt{IPDstNotEq("192.168.57.0", 24)} \\ \\
+\textsc{Raw}    & \texttt{ip4Dst = 192.168.57.100}     & \texttt{ip4Dst = 192.168.57.0/24} \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ip4dst",}} \\
+   & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.100", "mask": 32 \}} \}} \\
+   & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ip4dst",}} \\
+   & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.0", "mask": 24 \}} \}} \\
+\end{tabularx}
+
+\python{IPDst} matches packets with a particular IP destination address, or destination network.  It only matches
+IP v4 packets, as per Openflow 1.0.  
+
+\python{IPDstEq} cannot accept a list of values as other predicates can.  
+Instead, you can specify a subnet -- a range
+of IP addresses using a bit mask value.  This is identical to using CIDR format, so that 
+\python{IPDstEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
+IP addresses \python{192.168.57.1} to \python{192.168.57.255}.  Leaving out the subnet mask in Python 
+or Raw NetKAT is equivalent to specifiying a mask of 32 - meaning all 32 bits of the IP address are used
+in the match.  (The 32 must be explicitly specified in REST-based NetKAT).
+
+\subsubsection{IPProto}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{IPProtoEq(6)}    & \texttt{IPProtoNotEq(6)} \\
+    & \texttt{IPProtoEq(6,17)}  & \texttt{IPProtoNotEq(6,17)} \\
+    & \texttt{IPProtoEq([6,17])}  & \texttt{IPProtoNotEq([6,17])} \\ \\
+\textsc{Raw}    & \texttt{ipProto = 6}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ipproto", "value": 6 \} }} 
+\end{tabularx}
+
+\python{IPProtoEq} matches packets with a certain IP Protocol, or set of protocols -- if a list is specified, 
+there is an implicit OR between them.  It only matches IP v4 packets, as per OpenFlow 1.0 specs.  
+
+The IP Protocol is a number from 1-255.  A complete list of common protocols are listed in 
+https://en.wikipedia.org/wiki/List\_of\_IP\_protocol\_numbers.  In Python, you can also match against the
+constants in \python{ryu.packet.in_proto}.
+
+\subsubsection{IPSrc}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{IPSrcEq("192.168.57.100")}    & \texttt{IPSrcNotEq("192.168.57.100")} \\
+    & \texttt{IPSrcEq("192.168.57.0", 24)}  & \texttt{IPSrcNotEq("192.168.57.0", 24)} \\ \\
+\textsc{Raw}    & \texttt{ip4Src = 192.168.57.100}     & \texttt{ip4Src = 192.168.57.0/24} \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ip4src",}} \\
+   & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.100", "mask": 32 \}} \}} \\
+   & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ip4src",}} \\
+   & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.0", "mask": 24 \}} \}} \\
+\end{tabularx}
+
+\python{IPSrc} matches packets with a particular IP source address, or source network.  It only matches
+IP v4 packets, as per Openflow 1.0.  
+
+\python{IPSrcEq} cannot accept a list of values as other predicates can.  
+Instead, you can specify a subnet -- a range
+of IP addresses using a bit mask value.  This is identical to using CIDR format, so that 
+\python{IPSrcEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
+IP addresses \python{192.168.57.1} to \python{192.168.57.255}.  Leaving out the subnet mask in Python 
+or Raw NetKAT is equivalent to specifiying a mask of 32 - meaning all 32 bits of the IP address are used
+in the match.  (The 32 must be explicitly specified in REST-based NetKAT).
+
+
+\subsubsection{Port}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python} 	& \texttt{PortEq(1)} 		& \texttt{PortNotEq(1)} \\
+	 	& \texttt{PortEq(1,2,3)} 	& \texttt{PortNotEq(1,2,3)} \\
+	 	& \texttt{PortEq([1,2,3])} 	& \texttt{PortNotEq([1,2,3])} \\ \\
+\textsc{Raw}		& \texttt{port = 1} 		& \\ \\
+\textsc{REST}	& \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "port", "value": 1 \} }} 
+\end{tabularx}
+
+\python{PortEq} matches packets that arrive on a particular port, or on a particular set of ports -- if the 
+parameter is a list of ports, there is an implicit OR between them.  
+
+A port number must be an integer from
+1 \ldots 65520, the upper limit of physical port numbers according to the OpenFlow 1.0 spec.  It can also be 
+a string convertible to an integer in this range.  The port number is not checked against any known list
+of port numbers on the switch, so you can insert rules for non-operational ports (they obviously won't
+match any packets until the port becomes operational).  
+
+\python{PortEq} predicates are usually combined with \python{SwitchEq} predicates because packet processing
+is switch-and-port-specific.  However, it may be used alone if, for example, a packet on port 47 is processed exactly
+the same on every switch (for example, port 47 is the trunk port between switches).  
+
+\subsubsection{SwitchEq}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python} 	& \texttt{SwitchEq(1981745)} 		& \texttt{SwitchNotEq(1981745)} \\
+	 	& \texttt{SwitchEq(1981745, 887345)} 	& \texttt{SwitchNotEq(1981745, 887345)} \\
+	 	& \texttt{SwitchEq([1981745, 887345])} 	& \texttt{SwitchNotEq([1981745, 887345])} \\ \\
+\textsc{Raw}		& \texttt{switch = 1981745} 		& \\ \\
+\textsc{REST}	& \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "switch", "value": 1981745 \} }} 
+\end{tabularx}
+
+\python{SwitchEq} matches packets that arrive on a particular switch or set of switches.  
+Switches are identified by 
+a 64-bit number called a \emph{datapath ID} or \emph{DPID}.  On OpenVSwitch, the default OpenFlow
+switch provided by Mininet, DPID's are generally small integers corresponding to the switch name --
+e.g. \python{s1} in Mininet has the DPID 1.  Physical switches generally append the OpenFlow instance
+number with the overall MAC id of the switch so it's globally unique.  But this varies from switch
+to switch. 
+
+\python{SwitchEq} predicates are usually combined with \python{PortEq} predicates because packet processing
+is switch-and-port-specific.  
+
+\subsubsection{TcpDstPort}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{TcpDstPortEq(80)}    & \texttt{TcpDstPortNotEq(80)} \\
+    & \texttt{TcpDstPortEq(80,443)}  & \texttt{TcpDstPortNotEq(80,443)} \\
+    & \texttt{TcpDstPortEq([80,443])}  & \texttt{TcpDstPortNotEq([80,443])} \\ \\
+\textsc{Raw}    & \texttt{tcpDstPort = 80}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "tcpdstport", "value": 80 \} }} 
+\end{tabularx}
+
+\python{TcpDstPortEq} matches packets with a certain TCP or UDP destination port, or set of ports -- if the 
+parameter is a list of ports, there is an implicit OR between them.  Note this only matches TCP or UDP packets,
+which must be IP packets.  A complete list of common destination ports are listed in 
+https://en.wikipedia.org/wiki/List\_of\_TCP\_and\_UDP\_port\_numbers
+
+\subsubsection{TcpSrcPort}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{TcpSrcPortEq(5000)}    & \texttt{TcpSrcPortNotEq(5000)} \\
+    & \texttt{TcpSrcPortEq(5000,5001)}  & \texttt{TcpSrcPortNotEq(5000,5001)} \\
+    & \texttt{TcpSrcPortEq([5000,5001])}  & \texttt{TcpSrcPortNotEq([5000,5001])} \\ \\
+\textsc{Raw}    & \texttt{tcpSrcPort = 5000}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "tcpsrcport", "value": 5000 \} }} 
+\end{tabularx}
+
+\python{TcpSrcPortEq} matches packets with a certain TCP or UDP source port, or set of ports -- if the 
+parameter is a list of ports, there is an implicit OR between them.  Note this only matches TCP or UDP packets,
+which must be IP packets.  
+
+\python{TcpSrcPort} matches are rarely used in OpenFlow since TCP and UDP source ports are essentially random
+numbers assigned by the client.  They can be used for ``per-flow'' rules where a rule lasts for the 
+duration of a conversation between a client and a server.  
+
+\subsubsection{Vlan}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{VlanEq(1001)}    & \texttt{VlanNotEq(1001)} \\
+    & \texttt{VlanEq(1001,1002)}  & \texttt{VlanNotEq(1001,1002)} \\
+    & \texttt{VlanEq([1001,1002])}  & \texttt{VlanNotEq([1001,1002])} \\ \\
+\textsc{Raw}    & \texttt{vlanId = 1001}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "vlan", "value": 1001 \} }} 
+\end{tabularx}
+
+\python{VlanEq} matches packets that arrive with a particular VLAN tag, or on a particular set of VLAN tags -- 
+if the 
+parameter is a list of vlans, there is an implicit OR between them.  
+
+The VLAN id, as defined by IEE 802.1q is a 12 bit value from 1 \ldots 4095.  VLAN matches are only applicable
+to packets with an actual VLAN tag, so the Ethernet Type is 0x8100.  However, in such cases, 
+OpenFlow exposes the Ethernet 
+Type of the \emph{enclosed packet}.  So for example, an IP packet wrapped with a VLAN tag will match 
+\python{EthType(0x800)}.  
+
+In most physical switches, access ports are tagged with a particular VLAN.  So though the packet coming
+from the host is untagged, the tagging occurs at the switch before the OpenFlow engine is invoked.  
+That way you can assign access ports to VLANs, and any packets coming in on that port will match the
+appropriate \python{VlanEq}.  This is one of the few cases where packet headers are manipulated outside the
+OpenFlow engine.  
+
+\subsubsection{VlanPcp}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python}   & \texttt{VlanPcpEq(1)}    & \texttt{VlanPcpNotEq(1)} \\
+    & \texttt{VlanPcpEq(1,2)}  & \texttt{VlanPcpNotEq(1,2)} \\
+    & \texttt{VlanPcpEq([1,2])}  & \texttt{VlanPcpNotEq([1,2])} \\ \\
+\textsc{Raw}    & \texttt{vlanPcp = 1}     & \\ \\
+\textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "vlanpcp", value: 1 \} }} 
+\end{tabularx}
+
+\python{VlanPcpEq} matches packets that arrive with a particular VLAN Priority Code Point (PCP), 
+or on a particular set of VLAN PCP's -- 
+if the 
+parameter is a list of PCP's, there is an implicit OR between them.  Only VLAN tagged packets
+will match this predicate.
+
+The PCP as defined by IEEE 802.1q must be an integer from 0-7.  0 is the default, generally meaning
+best effort delivery.  
+
+\subsection{Combinations}
+
+\subsubsection{And}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{$pred_1$ \& $pred_2$} \\
+    & \texttt{And($pred_1$, $pred_2$, \ldots, $pred_n$)} \\ \\
+\textsc{Raw}    & \texttt{$pred_1$ and $pred_2$}  \\ \\
+\textsc{REST} & \texttt{ \{ "type": "and", "preds": [ $pred_1$, $pred_2$, \ldots $pred_n$ ] \} } 
+\end{tabularx}
+
+\python{And} is the Boolean conjunction of predicates. 
+
+\subsubsection{Not}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{\textasciitilde $pred_1$} \\
+    & \texttt{Not($pred_1$)} \\ \\
+\textsc{Raw}    & \texttt{not $pred_1$}  \\ \\
+\textsc{REST} & \texttt{ \{ "type": "neg", "pred": $pred_1$ \} } 
+\end{tabularx}
+
+\python{Not} is the Boolean negation of a single predicate.
+
+\subsubsection{Or}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{$pred_1$ $\vert$ $pred_2$} \\
+    & \texttt{Or($pred_1$, $pred_2$, \ldots, $pred_n$)} \\ \\
+\textsc{Raw}    & \texttt{$pred_1$ or $pred_2$}  \\ \\
+\textsc{REST} & \texttt{ \{ "type": "or", "preds": [ $pred_1$, $pred_2$, \ldots $pred_n$ ] \} } \end{tabularx}
+
+\python{Or} is the Boolean disjunction of predicates.  In Python, if all of your disjunction terms involve
+the same field, you can use the list form of the simple predicate as a shortcut (except for 
+\python{IpSrcEq} and \python{IpDstEq}). 
+
+Note that in Python \python{Or} shares a symbol with \python{Union}, but the parser keeps the meaning straight.
 
 \section{Policies}
 
-\section{Event Hooks}
+\subsubsection{drop}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{drop} \\ \\
+\textsc{Raw}   & \texttt{drop} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "filter", "pred": \{ "type": false \} \} } 
+\end{tabularx}
+
+\python{drop} is a \emph{policy} that drops all packets.  It is equivalent to \python{Filter(false)}.
+
+Note that in Python, \python{id} and \python{drop} are the only policies that begin with a lower case
+letter, and do not require parantheses.  
+
+\subsubsection{Filter}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{Filter($pred$)} \\ \\
+\textsc{Raw}   & \texttt{filter $pred$} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "filter", "pred": $pred$ \} } 
+\end{tabularx}
+
+\python{Filter} accepts all packets that match the predicate $pred$ and rejects everything else.
+It is described in detail in Section \ref{section:combining}.
+
+\subsubsection{id}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{id} \\ \\
+\textsc{Raw}   & \texttt{id} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "filter", "pred": \{ "type": true \} \} } 
+\end{tabularx}
+
+\python{drop} is a \emph{policy} that drops all packets.  It is equivalent to \python{Filter(true)}.
+
+Note that in Python, \python{id} and \python{drop} are the only policies that begin with a lower case
+letter, and do not require parantheses.  
+
+\subsubsection{SetEthDst}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetEthDst("72:00:08:bc:5f:a0")} \\ \\
+\textsc{Raw}    & \texttt{ethDst := 125344472129440}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "ethdst", "value": 125344472129440 \} }
+\end{tabularx}
+
+\python{SetEthDst} sets the Ethernet MAC destination address for a packet.    
+
+In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
+boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+an integer.  
+
+\subsubsection{SetEthSrc}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetEthSrc("72:00:08:bc:5f:a0")} \\ \\
+\textsc{Raw}    & \texttt{ethSrc := 125344472129440}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "ethsrc", "value": 125344472129440 \} }
+\end{tabularx}
+
+\python{SetEthDst} sets the Ethernet MAC source address for a packet.    
+
+In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
+boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+an integer.  
+
+\subsubsection{SetEthType}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetEthType(0x800)} \\ \\
+\textsc{Raw}    & \texttt{ethTyp := 2048}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "ethtype", "value": 2048 \} }
+\end{tabularx}
+
+\python{SetEthType} sets the Ethernet type for a packet.    
+
+Note that for VLAN-tagged packets, you set the Ethernet type for the \emph{inner} packet, not 0x8100
+for VLAN.  To tag it with a VLAN, you simply use the policy \netkat{SetVlan}, and that assigns the
+correct Ethernet type to the outer packet.  
+
+\subsubsection{SetIPDst}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetIPDst("192.168.57.100")} \\ \\
+\textsc{Raw}    & \texttt{ip4Dst := 192.168.57.100}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "ip4dst", } \\
+  & \texttt{"value": \{"addr": "192.168.57.100" \} \} }
+\end{tabularx}
+
+\python{SetIPDst} sets the IP v4 destination address.  Note that unlike the \netkat{IPDstEq} predicate,
+there is no option for masking.  You must set a fixed IP address with all bits present.    
+
+The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
+\netkat{SetEthType} policy.  Otherwise, the packet will likely be dropped by a host or router before it 
+reaches its destination.
+
+\subsubsection{SetIPProto}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetIPProto(6)} \\ \\
+\textsc{Raw}    & \texttt{ipProto := 6}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "ipProto", "value": 6 \} }
+\end{tabularx}
+
+\python{SetIPProto} sets the IP v4 protocol type.      
+
+The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
+\netkat{SetEthType} policy.  Otherwise, the packet will likely be dropped by a host or router before it 
+reaches its destination.
+
+\subsubsection{SetIPSrc}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetIPSrc("192.168.57.100")} \\ \\
+\textsc{Raw}    & \texttt{ip4Src := 192.168.57.100}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "ip4src", } \\
+  & \texttt{"value": \{"addr": "192.168.57.100" \} \} }
+\end{tabularx}
+
+\python{SetIPSrc} sets the IP v4 destination address.  Note that unlike the \netkat{IPSrcEq} predicate,
+there is no option for masking.  You must set a fixed IP address with all bits present.    
+
+The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
+\netkat{SetEthType} policy.  Otherwise, the packet will likely be dropped by a host or router before it 
+reaches its destination.
+
+\subsubsection{SetPort}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetPort(1)} \\ \\
+\textsc{Raw}    & \texttt{port := 1}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "port", "value": 1 \} }
+\end{tabularx}
+
+\python{SetPort} sets the port destination for this packet.      
+
+A port number must be an integer from
+1 \ldots 65520, the upper limit of physical port numbers according to the OpenFlow 1.0 spec.  It can also be 
+a string convertible to an integer in this range.  The port number is not checked against any known list
+of port numbers on the switch, but any attempt to send a packet over a non-existent or non-operational
+port will fail.  
+
+\section{Events}
+
+\section{Commands}
 
 \section{Compiler Directives}
 
