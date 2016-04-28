@@ -313,7 +313,7 @@ best effort delivery.
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{$pred_1$ \& $pred_2$} \\
-    & \texttt{And($pred_1$, $pred_2$, \ldots, $pred_n$)} \\ \\
+    & \texttt{And([$pred_1$, $pred_2$, \ldots, $pred_n$])} \\ \\
 \textsc{Raw}    & \texttt{$pred_1$ and $pred_2$}  \\ \\
 \textsc{REST} & \texttt{ \{ "type": "and", "preds": [ $pred_1$, $pred_2$, \ldots $pred_n$ ] \} } 
 \end{tabularx}
@@ -337,7 +337,7 @@ best effort delivery.
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{$pred_1$ $\vert$ $pred_2$} \\
-    & \texttt{Or($pred_1$, $pred_2$, \ldots, $pred_n$)} \\ \\
+    & \texttt{Or([$pred_1$, $pred_2$, \ldots, $pred_n$])} \\ \\
 \textsc{Raw}    & \texttt{$pred_1$ or $pred_2$}  \\ \\
 \textsc{REST} & \texttt{ \{ "type": "or", "preds": [ $pred_1$, $pred_2$, \ldots $pred_n$ ] \} } \end{tabularx}
 
@@ -348,6 +348,8 @@ the same field, you can use the list form of the simple predicate as a shortcut 
 Note that in Python \python{Or} shares a symbol with \python{Union}, but the parser keeps the meaning straight.
 
 \section{Policies}
+
+\subsection{Primitives}
 
 \subsubsection{drop}
 
@@ -502,11 +504,445 @@ a string convertible to an integer in this range.  The port number is not checke
 of port numbers on the switch, but any attempt to send a packet over a non-existent or non-operational
 port will fail.  
 
+\subsubsection{SetTcpDstPort}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetTcpDstPort(80)} \\ \\
+\textsc{Raw}    & \texttt{tcpDstPort := 80}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "tcpdstport", "value": 80 \} }
+\end{tabularx}
+
+\python{SetTcpDstPort} sets the TCP or UDP destination port.      
+
+The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
+\netkat{SetEthType} policy.  
+Also, the proper IP Protocol (TCP or UDP) must already be set in incoming packet, or through the 
+\netkat{SetIPProto} policy.  
+Otherwise, the packet will likely be dropped by a host or router before it 
+reaches its destination.
+
+\subsubsection{SetTcpSrcPort}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetTcpSrcPort(5000)} \\ \\
+\textsc{Raw}    & \texttt{tcpSrcPort := 5000}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "tcpsrcport", "value": 5000 \} }
+\end{tabularx}
+
+\python{SetTcpDstPort} sets the TCP or UDP source port.      
+
+The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
+\netkat{SetEthType} policy.  
+Also, the proper IP Protocol (TCP or UDP) must already be set in incoming packet, or through the 
+\netkat{SetIPProto} policy.  
+Otherwise, the packet will likely be dropped by a host or router before it 
+reaches its destination.
+
+\subsubsection{SetVlan}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetVlan(1001)} \\ \\
+\textsc{Raw}    & \texttt{vlanId := 1001}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "vlan", "value": 1001 \} }
+\end{tabularx}
+
+\python{SetVlan} sets the VLAN tag for the packet.  If there is no VLAN tag, it automatically sets 
+the \python{EthType} to 0x8100, and pushes the current \python{EthType} into the inner packet.  If there
+is already a VLAN tag, it merely overwrites the VLAN id.
+
+\subsubsection{SetVlanPcp}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SetVlanPcp(1)} \\ \\
+\textsc{Raw}    & \texttt{vlanPcp := 1}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "vlanpcp", "value": 1 \} }
+\end{tabularx}
+
+\python{SetVlanPcp} sets the VLAN priority for the packet.  If there is no VLAN tag, it automatically sets 
+the \python{EthType} to 0x8100, pushes the current \python{EthType} into the inner packet and sets the
+VLAN id to 0.  If there
+is already a VLAN tag, it merely overwrites the existing VLAN PCP.
+
+\subsection{Combinations}
+
+\subsubsection{IfThenElse}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{IfThenElse($pred$, $truepol$ $falsepol$)} \\
+\textsc{Raw}    & \texttt{if $pred$ then $truepol$ else $falsepol$}  \\ \\
+\end{tabularx}
+
+\python{IfThenElse} tests a predicate and executes $truepol$ if the predicate is true or $falsepol$ if it
+is not.  This is explained further in Section \ref{section:combining}.
+
+
+\subsubsection{Seq}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{$pol_1$ >> $pol_2$} \\
+    & \texttt{Seq([$pol_1$, $pol_2$, \ldots, $pol_n$])} \\ \\
+\textsc{Raw}    & \texttt{$pol_1$ ;  $pol_2$}  \\ \\
+\textsc{REST} & \texttt{ \{ "type": "seq", "pols": [ $pol_1$, $pol_2$, \ldots $pol_n$ ] \} } 
+\end{tabularx}
+
+\python{Seq} is the sequential composition of policies.  The packet is pushed through each of the
+policies one after the other in the order listed.  This is explained further in Section \ref{section:combining}.
+
+\subsubsection{Union}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{$pol_1$ $\vert$ $pol_2$} \\
+    & \texttt{Union([$pol_1$, $pol_2$, \ldots, $pol_n$])} \\ \\
+\textsc{Raw}    & \texttt{$pol_1$ $\vert$  $pol_2$}  \\ \\
+\textsc{REST} & \texttt{ \{ "type": "union", "pols": [ $pol_1$, $pol_2$, \ldots $pol_n$ ] \} } 
+\end{tabularx}
+
+\python{Union} is the parallel composition of policies.  $n$ copies of the packet are sent through
+each of the listed policies in parallel.  This is explained further in Section \ref{section:combining}.
+
 \section{Events}
+
+In Python, each Frenetic event has a hook listed below.  If the application defines a handler with the same
+signature, that handler is called on the event.  If the user doesn't define a handler, a default handler is
+invoked which simply logs the event.  
+
+In REST, calling the URL \netkat{/events/$client\_id$} will
+return the JSON data below if the event has been fired. 
+
+\subsection{connected}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{connected()} \\
+\end{tabularx}
+
+There is no \netkat{connected} event in REST.  To simulate it, you simply call GET on the URL \netkat{/version}.  If 
+a response comes back (there is no data), then you are connected to Frenetic.
+
+\subsection{packet\_in}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{packet\_in($switch\_id$, $port\_id$, $payload$)} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "packet\_in", "switch\_id": 1981745, } \\
+  & \texttt{"port\_id": 1, "payload": \{ } \\
+  & \texttt{"id": 19283745, "buffer": "AB52DF57B12BF87216345" \}\} }
+\end{tabularx}
+
+\python{packet_in} is described in detail in Section \ref{introduction:packet_in}.  
+
+In the Python version, $switch\_id$ is a 64-bit DPID per OpenFlow specs,  and $port\_id$ is a 32-bit 
+integer.  $payload$ is a Python object of either class \python{Buffered} or \python{NotBuffered}.  
+Buffered objects have attributes \python{buffer_id} and\python{buffer} with the decoded data. 
+NotBuffered objects only have a \python{data} attribute with the decoded data.    
+
+In the REST version,
+the presence of the \python{id} attribute means the packet is Buffered.  The \python{buffer} attribute
+is the packet contents encoded in Base64.  
+
+\subsection{port\_down}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{port\_down($switch\_id$, $port\_id$)} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "port\_down", "switch\_id": 1981745, "port\_id": 1 \} } 
+\end{tabularx}
+
+The \python{port_down} event is fired when the port is disconnected, deactivated, reconfigured, or
+removed from the OpenFlow engine.  
+ 
+\subsection{port\_up}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{port\_up($switch\_id$, $port\_id$)} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "port\_up", "switch\_id": 1981745, "port\_id": 1 \} } 
+\end{tabularx}
+
+The \python{port_up} event is fired when the port is connected, activated, reconfigured, or
+assigned to the OpenFlow engine and is ready to use.  
+
+\subsection{switch\_down}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{switch\_down($switch\_id$)} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "switch\_down", "switch\_id": 1981745 \} } 
+\end{tabularx}
+
+The \python{switch_down} event is fired when the switch is gracefully stopped, or the OpenFlow
+engine has been stopped.  
+ 
+\subsection{switch\_up}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{switch\_up($switch\_id$, $ports$)} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "switch\_up", "switch\_id": 1981745, "ports": [1,2] \} } 
+\end{tabularx}
+
+The \python{switch_up} event is fired when the switch and OpenFlow engine are ready to use.  The
+operational ports connected to OpenFlow are sent in \python{ports}.  
 
 \section{Commands}
 
-\section{Compiler Directives}
+Commands are called from Python by calling the method listed below.  Commands may send a reply, as in
+\python{port_stats} or not, as in \python{pkt_out}.
+
+Commands in REST are sent to the listed URL via GET or POST.  The JSON data listed is an example
+request (for POSTs) or response (for GETs). 
+
+\subsection{current\_switches}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\textsc{Python} &  & \texttt{current\_switches()} \\ \\
+\textsc{REST} & \texttt{GET /current\_switches} & 
+  \texttt{ [ \{"switch\_id": 1981745, "ports": [1,2] \}, } \\
+  & & \texttt{ \{"switch\_id": 9435797, "ports": [1] \} ] } 
+\end{tabularx}
+
+The \python{current_switches} command retrieves a dictionary of operational, OpenFlow enabled switches
+and their operational ports.  The dictionary key is the DPID of the switch and the value is the
+list of port numbers for that switch.    
+
+\subsection{config}
+
+\bigskip
+\begin{tabularx}{\linewidth}{llX}
+\textsc{Python} &  & \texttt{config($options$)} \\ \\
+\textsc{REST} & \texttt{POST /config} & 
+  \texttt{ \{"cache\_prepare":"keep", "field\_order":"default", } \\
+  & & \texttt{ "remove\_tail\_drops": false, "dedup\_flows": true, } \\ 
+  & & \texttt{ "optimize": true \} } \\ 
+\end{tabularx}
+
+\python{config} sets compiler options for Frenetic.  These options are applied on the next \python{update}
+command.  
+
+\begin{description}
+\item[cache\_prepare] ("empty" or "keep", defaults to empty): If keep, keep old policies after calling \python{update} command.
+There is an implicit Union between the old and new policies in the new setup.  
+\item[dedup\_flows] (boolean, defaults to true): If true, remove any OpenFlow table rules that are exactly
+alike.  
+\item[field\_order] ("default", "heuristic", or a list of \texttt{<} separated fields, defaults to heuristic): 
+  Set field order priority.  On occasion, setting this may reduce the OpenFlow table size.
+  The heuristic setting attempts the optimal ordering based on the fields in the policy.
+\item[optimize] (boolean, defaults to true): If true, attempt to optimize the number of OpenFlow rules.
+\item[remove\_tail\_drops] (boolean, defaults to false): If true, remove any drop rules from the end of the
+OpenFlow table.  This is necessary on switches like the Dell where the ACL table incorrectly prioritizes
+itself over all L2 and L3 table rules.
+\end{description}
+
+\subsection{pkt\_out}
+
+\bigskip
+\begin{tabularx}{\linewidth}{llX}
+\textsc{Python} &  & \texttt{pkt\_out($switch\_id$, $payload$, $plist$, $inport$)} \\ \\
+\textsc{REST} & \texttt{POST /pkt\_out} & 
+  \texttt{ \{"switch":1981745, "in\_port":1, } \\
+  & & \texttt{ "actions": [ $pol_1$, $pol_2$ \ldots $pol_n$ ], } \\ 
+  & & \texttt{ "payload": \{ "id": 19283745, }\\
+  & & \texttt{ "buffer": "AB52DF57B12BF87216345" \} \} } 
+\end{tabularx}
+
+\python{pkt_out}, which in many ways is the analogue of the \python{packet_in} hook, sending a packet
+out to the switch for processing. 
+
+The Python parameters and REST attributes are the same as their \python{packet_in} counterparts.
+The exception is \python{actions} which is a Python or JSON list of policies.  The policies you can
+use here are limited \ldots the limitations are described in detail in Section \ref{introduction:packet_in}.  
+
+\subsection{port\_stats}
+
+\bigskip
+\begin{tabularx}{\linewidth}{llX}
+\textsc{Python} &  & \texttt{port\_stats($switch\_id$, $port\_id$)} \\ \\
+\textsc{REST} & \texttt{GET /port\_stats/$switch\_id$/$port\_id$} & 
+  \texttt{ [ \{ "port\_no":1, \ldots \}, \ldots ] } 
+\end{tabularx}
+
+\python{port_stats} retrieves current port-level statistics for a certain switch and port.  Sending a 
+\python{port_id} of 0 retrieves stats of each operational port on that switch.   Statistics attributes
+include:
+
+\begin{description}
+\item[port\_no] Port number  
+\item[rx\_packets] Number of packets received  
+\item[tx\_packets] Number of packets transmitted  
+\item[rx\_bytes] Number of bytes received  
+\item[tx\_bytes] Number of bytes transmitted  
+\item[rx\_dropped] Number of packets attempted to receive, but dropped  
+\item[tx\_dropped] Number of packets attempted to transmit, but dropped
+\item[rx\_errors] Number of packets errored upon receive 
+\item[tx\_errors] Number of packets errored upon transmit
+\item[rx\_fram\_err] Number of packets received with frame errors
+\item[rx\_over\_err] Number of packets received with buffer overrun errors
+\item[rx\_crc\_err] Number of packets received with CRC errors
+\item[collisions] Number of collisions detected
+\end{description}
+
+In Python, the stats are returned as a list of dictionaries, one dictionary for each port requested.  The dict 
+keys are the attributes listed above.
+
+\subsection{query}
+
+\bigskip
+\begin{tabularx}{\linewidth}{llX}
+\textsc{Python} &  & \texttt{query($label$)} \\ \\
+\textsc{REST} & \texttt{GET /query/$label$} & 
+  \texttt{ \{ "packets":1000, "bytes": 8000 \} } 
+\end{tabularx}
+
+\python{query} retrieves statistics from a query bucket named \python{label}.  This label should have
+been set up as a \netkat{SendToQuery(label)} policy.
+
+\subsection{update}
+
+\bigskip
+\begin{tabularx}{\linewidth}{llX}
+\textsc{Python} &  & \texttt{update($policy$)} \\ \\
+\textsc{REST} & \texttt{POST /update\_json/$client\_id$} & 
+  \texttt{ $policy$ } 
+\end{tabularx}
+
+\python{update} sends a NetKAT policy to Frenetic, which will compile it into OpenFlow flow tables for
+each connected switch.  In REST, the policy itself is the JSON packet representing the policy -- generally
+the outermost envelope is a policy combinator like \python{Union}.
 
 \section{Frenetic Command Line}
 
+\subsection{Common Options}
+
+All forms of the Frenetic command line accept the following parameters:
+
+\begin{description}
+\item[--verbosity] Log level, which can be debug, info, error.  Defaults to info.   
+\item[--log] Path to write logs to, or the special paths stdout and stderr.  Defaults to stderr.  
+\end{description}
+
+\subsection{Command Line Compiler}
+
+\begin{minted}{console}
+./frenetic.native dump [ local | global | virtual ]
+\end{minted}
+
+The commmand line compiler accepts Raw NetKAT files and compiles them into OpenFlow flow tables.
+The command line options vary depending on the type of compiler used:
+
+\subsubsection{Local}
+
+\begin{minted}{console}
+./frenetic.native dump local FILE
+\end{minted}
+
+\begin{description}
+\item[--dump-fdd]    dump a dot file encoding of the intermediate representation
+                  (FDD) generated by the local compiler
+\item[--json]        Parse input file as JSON.
+\item[--no-tables]   Do not print tables.
+\item[--print-fdd]   print an ASCI encoding of the intermediate representation
+                  (FDD) generated by the local compiler
+\item[--switches $n$]  number of switches to dump flow tables for (assuming
+                  switch-numbering 1,2,...,n)
+\end{description}
+
+\subsubsection{Global}
+
+\begin{minted}{console}
+./frenetic.native dump global FILE
+\end{minted}
+
+\begin{description}
+\item[--dump-auto]   dump a dot file encoding of the intermediate representation
+                  generated by the global compiler (symbolic NetKAT automaton)
+\item[--dump-fdd]    dump a dot file encoding of the intermediate representation
+                  (FDD) generated by the local compiler
+\item[--json]        Parse input file as JSON.
+\item[--no-tables]   Do not print tables.
+\item[--print-auto]  print an ASCI encoding of the intermediate representation
+                  generated by the global compiler (symbolic NetKAT automaton)
+\item[--print-fdd]   print an ASCI encoding of the intermediate representation
+                  (FDD) generated by the local compiler
+\end{description}
+
+\subsubsection{Virtual}
+
+\begin{minted}{console}
+./frenetic.native dump virtual FILE
+\end{minted}
+
+\begin{description}
+\item[--dump-fdd]          dump a dot file encoding of the intermediate
+                        representation (FDD) generated by the local compiler
+\item[--peg file]          Physical egress predicate. If not specified, defaults to
+                        peg.kat
+\item[--ping file]         Physical ingress predicate. If not specified, defaults
+                        to ping.kat
+\item[--print-fdd]         print an ASCI encoding of the intermediate
+                        representation (FDD) generated by the local compiler
+\item[--print-global-pol]  print global NetKAT policy generated by the virtual
+                        compiler
+\item[--ptopo file]        Physical topology. If not specified, defaults to
+                        ptopo.kat
+\item[--veg file]          Virtual egress predicate. If not specified, defaults to
+                        veg.kat
+\item[--ving file]         Virtual ingress predicate. If not specified, defaults to
+                        ving.kat
+\item[--ving-pol file]     Virtual ingress policy. If not specified, defaults to
+                        ving\_pol.kat
+\item[--vrel file]         Virtual-physical relation. If not specified, defaults to
+                        vrel.kat
+\item[--vtopo file]        Virtual topology. If not specified, defaults to
+                        vtopo.kat
+\end{description}
+
+
+\subsection{Compile Server}
+
+\begin{minted}{console}
+./frenetic.native compile-server [ --http-port=9000 ] 
+\end{minted}
+
+The compile server is an HTTP server, but it only compiles NetKAT policies into OpenFlow Flow Tables 
+and outputs the response.  It does not connect to any OpenFlow switch or pass back OpenFlow events.  
+It responds to the following REST commands:
+
+\begin{description}
+\item[POST /compile] Accepts NetKAT Raw format input and returns JSON-based flow table   
+\item[POST /compile\_pretty] Accepts NetKAT Raw format input and returns human-readable flow table   
+\item[GET /config] Returns JSON-based current comiler options   
+\item[POST /config] Changes current comiler options.  See command \python{config} above.
+\item[GET /$switch\_id$/flow\_table] Compiles current policy and returns JSON-based flow table   
+\item[POST /update] Accepts NetKAT Raw format input, but does not compile or return output.  It is expected
+that an update will be followed by a \texttt{GET /$switch$/flow\_table} to trigger the compilation   
+\end{description}
+
+\subsection{HTTP Controller}
+
+\begin{minted}{console}
+./frenetic.native http-controller [ --http-port=9000 ] [ --openflow-port=6633 ]
+\end{minted}
+
+The HTTP Controller is the option we've been using the most in this book.  It accepts REST commands
+to run the controller, and speaks OpenFlow to the switch.  You can adjust the default port numbers as
+above.  
+
+\subsection{Shell}
+
+\begin{minted}{console}
+./frenetic.native shell 
+\end{minted}
+
+The Shell is a REPL for Frenetic.  Like the HTTP server, it connects via OpenFlow to switches.  
+It can load Raw NetKAT policies, compile them to the server, and print out current flow-tables.  
+It does not respond to OpenFlow events, however, like the HTTP server does.  It's a good tool for debugging.
+
+To see shell commands, start up Frenetic shell and type \netkat{help}.

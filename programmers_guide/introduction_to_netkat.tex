@@ -138,11 +138,11 @@ When more than one entry matches a particular packet, the entry with the highest
 \end{description}
 
 In our example above, the controller installed a flow entry matching Ethernet Destination 10:23:10:59:12:fb:5c, 
-and an instruction applying the action "Output it through Port 3".
+and an instruction applying the action ``Output it through Port 3''.
 
 Suppose you wanted to write your own controller from scratch.  
 You could do that just by talking the OpenFlow protocol.
-Let's say you wrote this program in Node.js and placed it on the server "controller.example.com", 
+Let's say you wrote this program in Node.js and placed it on the server ``controller.example.com'', 
 listening on TCP port 6633.
 Then you'd just point your OpenFlow network device at controller.example.com:6633.
 Your program could install flow table entries into the network device over the OpenFlow protocol.
