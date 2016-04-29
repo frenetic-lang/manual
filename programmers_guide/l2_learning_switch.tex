@@ -199,10 +199,39 @@ There are a few ways to solve this problem, but we'll try an easy one first.
 In Chapter 2, we mentioned briefly that for every \netkat{FieldEq} NetKAT predicate, there is a corresponding
 \netkat{FieldNotEq} predicate.  We can use that in our policy, as we see in \netkat{learning3.py}:
 
-\inputminted[firstline=30,lastline=36]{python}{code/l2_learning_switch/learning3.py}
+\inputminted[firstline=30,lastline=37]{python}{code/l2_learning_switch/learning3.py}
 
-TODO: The first ping from h1 to h2 fails the first time, even though all the subsequent ones work, and 
-the seond pingall works 100 percent.  
+Basically, we want to see all packets with an unfamiliar Ethernet source MAC (because we want to learn the
+port) or destination MAC (because we need to flood it out all ports).  Although we could set up 
+NetKAT policies to handle the latter case, it tends to be overkill since an unlearned destination MAC
+usually replies soon afterwards, the MAC is learned, and everything is good.  
+
+Notice how the this fairly simple NetKAT policy becomes a large OpenFlow table:
+
+\begin{minted}{console}
+[DEBUG] Setting up flow table
++------------------------------------------------------+
+| 1 | Pattern                | Action                  |
+|------------------------------------------------------|
+| EthDst = 00:00:00:00:00:01 | Output(1)               |
+| EthSrc = 00:00:00:00:00:01 |                         |
+|------------------------------------------------------|
+| EthDst = 00:00:00:00:00:01 | Output(1)               |
+| EthSrc = 00:00:00:00:00:02 |                         |
+|------------------------------------------------------|
+| EthDst = 00:00:00:00:00:01 | Output(1)               |
+| EthSrc = 00:00:00:00:00:03 |                         |
+|------------------------------------------------------|
+| EthDst = 00:00:00:00:00:01 | Output(1)               |
+| EthSrc = 00:00:00:00:00:04 |                         |
+|------------------------------------------------------|
+| EthDst = 00:00:00:00:00:01 | Output(Controller(128)) |
+|------------------------------------------------------|
+...
+\end{minted}
+
+In fact, the table will have $n^2$ entries where $n$ is the number of learned MACs.  It's a lot easier
+to write the NetKAT rules than all these OpenFlow rules.  
 
 \section{Timeouts and Port Moves}
 \label{l2_learning_switch:timeouts}
@@ -221,7 +250,7 @@ Fortunately, plugging and unplugging hosts sends OpenFlow events \netkat{port_up
 respectively.  We can write hooks that control MAC learning and unlearning.  The following
 code is in \netkat{learning4.py}:
 
-\inputminted[firstline=60,lastline=69]{python}{code/l2_learning_switch/learning4.py}
+\inputminted[firstline=65,lastline=74]{python}{code/l2_learning_switch/learning4.py}
 
 When we make a port change, we call \netkat{update()} to recalculate and send the NetKAT rules down to the 
 switch.  This keeps the forwarding tables in sync with the NIB.  

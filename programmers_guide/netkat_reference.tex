@@ -224,38 +224,38 @@ to switch.
 \python{SwitchEq} predicates are usually combined with \python{PortEq} predicates because packet processing
 is switch-and-port-specific.  
 
-\subsubsection{TcpDstPort}
+\subsubsection{TCPDstPort}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lXX}
-\textsc{Python}   & \texttt{TcpDstPortEq(80)}    & \texttt{TcpDstPortNotEq(80)} \\
-    & \texttt{TcpDstPortEq(80,443)}  & \texttt{TcpDstPortNotEq(80,443)} \\
-    & \texttt{TcpDstPortEq([80,443])}  & \texttt{TcpDstPortNotEq([80,443])} \\ \\
+\textsc{Python}   & \texttt{TCPDstPortEq(80)}    & \texttt{TCPDstPortNotEq(80)} \\
+    & \texttt{TCPDstPortEq(80,443)}  & \texttt{TCPDstPortNotEq(80,443)} \\
+    & \texttt{TCPDstPortEq([80,443])}  & \texttt{TCPDstPortNotEq([80,443])} \\ \\
 \textsc{Raw}    & \texttt{tcpDstPort = 80}     & \\ \\
 \textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "tcpdstport", "value": 80 \} }} 
 \end{tabularx}
 
-\python{TcpDstPortEq} matches packets with a certain TCP or UDP destination port, or set of ports -- if the 
+\python{TCPDstPortEq} matches packets with a certain TCP or UDP destination port, or set of ports -- if the 
 parameter is a list of ports, there is an implicit OR between them.  Note this only matches TCP or UDP packets,
 which must be IP packets.  A complete list of common destination ports are listed in 
 https://en.wikipedia.org/wiki/List\_of\_TCP\_and\_UDP\_port\_numbers
 
-\subsubsection{TcpSrcPort}
+\subsubsection{TCPSrcPort}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lXX}
-\textsc{Python}   & \texttt{TcpSrcPortEq(5000)}    & \texttt{TcpSrcPortNotEq(5000)} \\
-    & \texttt{TcpSrcPortEq(5000,5001)}  & \texttt{TcpSrcPortNotEq(5000,5001)} \\
-    & \texttt{TcpSrcPortEq([5000,5001])}  & \texttt{TcpSrcPortNotEq([5000,5001])} \\ \\
+\textsc{Python}   & \texttt{TCPSrcPortEq(5000)}    & \texttt{TCPSrcPortNotEq(5000)} \\
+    & \texttt{TCPSrcPortEq(5000,5001)}  & \texttt{TCPSrcPortNotEq(5000,5001)} \\
+    & \texttt{TCPSrcPortEq([5000,5001])}  & \texttt{TCPSrcPortNotEq([5000,5001])} \\ \\
 \textsc{Raw}    & \texttt{tcpSrcPort = 5000}     & \\ \\
 \textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "tcpsrcport", "value": 5000 \} }} 
 \end{tabularx}
 
-\python{TcpSrcPortEq} matches packets with a certain TCP or UDP source port, or set of ports -- if the 
+\python{TCPSrcPortEq} matches packets with a certain TCP or UDP source port, or set of ports -- if the 
 parameter is a list of ports, there is an implicit OR between them.  Note this only matches TCP or UDP packets,
 which must be IP packets.  
 
-\python{TcpSrcPort} matches are rarely used in OpenFlow since TCP and UDP source ports are essentially random
+\python{TCPSrcPort} matches are rarely used in OpenFlow since TCP and UDP source ports are essentially random
 numbers assigned by the client.  They can be used for ``per-flow'' rules where a rule lasts for the 
 duration of a conversation between a client and a server.  
 
@@ -504,16 +504,16 @@ a string convertible to an integer in this range.  The port number is not checke
 of port numbers on the switch, but any attempt to send a packet over a non-existent or non-operational
 port will fail.  
 
-\subsubsection{SetTcpDstPort}
+\subsubsection{SetTCPDstPort}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
-\textsc{Python}   & \texttt{SetTcpDstPort(80)} \\ \\
+\textsc{Python}   & \texttt{SetTCPDstPort(80)} \\ \\
 \textsc{Raw}    & \texttt{tcpDstPort := 80}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "tcpdstport", "value": 80 \} }
 \end{tabularx}
 
-\python{SetTcpDstPort} sets the TCP or UDP destination port.      
+\python{SetTCPDstPort} sets the TCP or UDP destination port.      
 
 The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
 \netkat{SetEthType} policy.  
@@ -522,16 +522,16 @@ Also, the proper IP Protocol (TCP or UDP) must already be set in incoming packet
 Otherwise, the packet will likely be dropped by a host or router before it 
 reaches its destination.
 
-\subsubsection{SetTcpSrcPort}
+\subsubsection{SetTCPSrcPort}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
-\textsc{Python}   & \texttt{SetTcpSrcPort(5000)} \\ \\
+\textsc{Python}   & \texttt{SetTCPSrcPort(5000)} \\ \\
 \textsc{Raw}    & \texttt{tcpSrcPort := 5000}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "tcpsrcport", "value": 5000 \} }
 \end{tabularx}
 
-\python{SetTcpDstPort} sets the TCP or UDP source port.      
+\python{SetTCPDstPort} sets the TCP or UDP source port.      
 
 The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
 \netkat{SetEthType} policy.  

@@ -55,3 +55,6 @@ class NetworkInformationBase():
 
   def all_ports_except(self, in_port_id):
     return [p for p in self.ports if p != in_port_id]
+
+  def switch_not_yet_connected(self):
+    return self.ports == [] 

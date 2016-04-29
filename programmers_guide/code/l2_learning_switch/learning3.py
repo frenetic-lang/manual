@@ -30,7 +30,8 @@ class LearningApp3(frenetic.App):
   def policy(self):
     return \
       IfThenElse(
-        EthDstNotEq( self.nib.all_learned_macs() ),
+        EthSrcNotEq( self.nib.all_learned_macs() ) | 
+          EthDstNotEq( self.nib.all_learned_macs() ),
         SendToController("learning_app"),
         Union( self.policies_for_dest(self.nib.all_mac_port_pairs()) )
       )

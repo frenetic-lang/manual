@@ -30,13 +30,18 @@ class LearningApp4(frenetic.App):
   def policy(self):
     return \
       IfThenElse(
-        EthDstNotEq( self.nib.all_learned_macs() ),
+        EthSrcNotEq( self.nib.all_learned_macs() ) | 
+          EthDstNotEq( self.nib.all_learned_macs() ),
         SendToController("learning_app"),
         Union( self.policies_for_dest(self.nib.all_mac_port_pairs()) )
       )
 
   def packet_in(self, dpid, port_id, payload):
     nib = self.nib
+
+    # If we haven't learned the ports yet, just exit prematurely
+    if nib.switch_not_yet_connected():
+      return
 
     # Parse the interesting stuff from the packet
     ethernet_packet = self.packet(payload, "ethernet")
