@@ -1,9 +1,150 @@
+% !TEX root = frenetic_programmers_guide.tex
+
 \chapter{Frenetic REST API}
 
-\section{REST URL's}
- \label{frenetic_rest_api:urls}
+The Frenetic Python language bindings are only one way to write network applications.  The Frenetic
+HTTP Controller accepts NetKAT policies, configuration settings through JSON, and pushes network
+events like Packet In's through JSON.  So any programming language that can speak HTTP and JSON (pretty
+much all of them) can talk to Frenetic.  
 
-\section{Incoming, Northbound Events}
+\section{REST Verbs}
+\label{frenetic_rest_api:urls}
 
-\section{Messages}
+The following verbs are implemented in the HTTP Controller:
 
+\bigskip
+\begin{tabularx}{\linewidth}{lXX}
+\texttt{POST /$client\_id$/update\_json} & Update the network-wide NetKAT policy, compile the tables, and send the
+resulting tables to the switches. \\
+\texttt{GET /$client\_id$/event} & Get the latest waiting network events \\
+\texttt{GET /current\_switches} & Return a list of connected switches and ports \\
+\texttt{POST /pkt\_out} & Send a packet out via OpenFlows Packet Out message \\
+\texttt{GET /version} & Return Frenetic version \\
+\texttt{GET/config} & Get current Frenetic configuration \\
+\texttt{POST /config} & Update current Frenetic configuration \\
+\texttt{GET /query/$name$} & Get current statistics bucket contents \\
+\texttt{GET /port\_stats/$sw$/$port$} & Get port statistics contents for switch $sw$ and port $port$ \\
+\texttt{POST /$client\_id$/update} & Same as \texttt{update\_json} but the policy is in Raw NetKAT format 
+\end{tabularx}
+
+Of these verbs, you'll be calling \netkat{update_json} and \netkat{event} the most, so we'll discuss 
+these in detail.  The rest are outlined in Section \ref{reference:commands}.
+
+\section{Pushing Policies}
+
+You push policies to Frenetic by using the \texttt{POST /$client\_id$/update\_json} verb.  The 
+$client\_id$ is identical to the $client\_id$ instance variable set in our Python language examples.
+To make the policy updates smaller, you can split the policy into multiple client id's, then 
+call \netkat{update\_json} on just that portion to update the policy.   Frenetic recompiles all the
+policies together with an implicit \netkat{Union} -- so there can be no overlapping rules in each 
+of the clients.  
+
+The data you push is a JSON representation of the NetKAT policy.  For example, this policy using
+the Python bindings:
+
+\begin{minted}{python}
+Filter(PortEq(1)) >> SetPort(2) |
+Filter(PortEq(2)) >> SetPort(1) 
+\end{minted}
+
+Will look like this in JSON:
+
+\begin{minted}{json}
+{  "type": "union",
+   "pols": [
+     { "type": "seq",
+       "pols": [
+         { "type": "filter", 
+           "pred": { 
+              "type": "test", 
+              "header": "port",
+              "value": { "type": "physical", "port": 1 }
+           }
+         },
+         { "type": "mod",
+           "header": "port",
+           "value": { "type": "physical", "port": 2 }
+         }
+       ]  
+     },
+     { "type": "seq",
+       "pols": [
+         { "type": "filter", 
+           "pred": { 
+              "type": "test", 
+              "header": "port",
+              "value": { "type": "physical", "port": 2 } 
+           }
+         },
+         { "type": "mod",
+           "header": "port",
+           "value": { "type": "physical", "port": 1 }
+         }
+       ]  
+     }
+   ]
+}
+\end{minted}
+
+Figuring out the JSON by hand is pretty laborious.  So you can make the Python REPL and Frenetic 
+bindings do the work for you like this:
+
+\begin{minted}{console}
+vagrant@frenetic:~$ python
+Python 2.7.6 (default, Jun 22 2015, 17:58:13)
+[GCC 4.8.2] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import frenetic
+>>> from frenetic.syntax import *
+>>> pol = Filter(PortEq(1)) >> SetPort(2) | Filter(PortEq(2)) >> SetPort(1)
+>>> pol.to_json()
+{'pols': [{'pols': [{'pred': {'header': 'location', 'type': 'test', 'value': 
+{'type': 'physical', 'port': 1}}, 'type': 'filter'}, {'header': 'location', 
+'type': 'mod', 'value': {'type': 'physical', 'port': 2}}], 'type': 'seq'}, 
+{'pols': [{'pred': {'header': 'location', 'type': 'test', 'value': {'type': 
+'physical', 'port': 2}}, 'type': 'filter'}, {'header': 'location', 'type': 
+'mod', 'value': {'type': 'physical', 'port': 1}}], 'type': 'seq'}], 'type': 
+'union'}
+>>>
+\end{minted}
+
+The complete catalog of JSON syntax for NetKAT predicates and policies is in Chapter 
+\ref{netkat_reference}
+
+\section{Incoming Events}
+
+Calling the \texttt{GET /$client\_id$/event} verb gets a list of incoming network events.
+The call will block until events become available, which is why the Python bindings are 
+implemented asynchrononously through callbacks.   The events come back as a 
+JSON array, so there could be more than one.
+
+All incoming events are listed in Section \ref{netkat_reference:events}.  The most
+prevalent one is \netkat{packet_in}, so your call to \texttt{GET /$client\_id$/event} might
+return something like this:
+
+\begin{minted}{json}
+[
+  { "type": "packet in", 
+    "switch id": 1981745, 
+    "port id": 1, 
+    "payload": {      "id": 19283745, 
+      "buffer": "AB52DF57B12BF87216345" 
+    }
+  }
+  { "type": "packet in", 
+    "switch id": 923462, 
+    "port id": 2, 
+    "payload": {      "buffer": "AB52DF57B12BF87216345" 
+    }
+  },
+]
+\end{minted}
+
+The payload may be either buffered or unbuffered -- the absence of an \netkat{id} attribute 
+indicates the packet is unbuffered, in which case the \netkat{buffer} attribute is the entire
+contents of the packet.  (See Section \ref{intro:buffering} for an explanation of how buffering
+works.)
+
+The contents are encoded in Base 64, and most languages have decoders for this type.  You will
+need to write or acquire a packet parser to extract and test data from inside the packet -- RYU's
+packet library is good on the Python side. 

@@ -1,6 +1,7 @@
 % !TEX root = frenetic_programmers_guide.tex
 
 \chapter{Frenetic/NetKAT Reference}
+\label{netkat_reference}
 
 \section{NetKAT Predicates}
 \label{netkat_reference:predicates}
@@ -186,7 +187,8 @@ in the match.  (The 32 must be explicitly specified in REST-based NetKAT).
 	 	& \texttt{PortEq(1,2,3)} 	& \texttt{PortNotEq(1,2,3)} \\
 	 	& \texttt{PortEq([1,2,3])} 	& \texttt{PortNotEq([1,2,3])} \\ \\
 \textsc{Raw}		& \texttt{port = 1} 		& \\ \\
-\textsc{REST}	& \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "port", "value": 1 \} }} 
+\textsc{REST}	& \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "location", }}\\
+ & \multicolumn{2}{l}{\texttt{ "value": \{ "type": "physical", "port": 1 \} \} }} 
 \end{tabularx}
 
 \python{PortEq} matches packets that arrive on a particular port, or on a particular set of ports -- if the 
@@ -202,7 +204,7 @@ match any packets until the port becomes operational).
 is switch-and-port-specific.  However, it may be used alone if, for example, a packet on port 47 is processed exactly
 the same on every switch (for example, port 47 is the trunk port between switches).  
 
-\subsubsection{SwitchEq}
+\subsubsection{Switch}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lXX}
@@ -391,6 +393,24 @@ It is described in detail in Section \ref{section:combining}.
 Note that in Python, \python{id} and \python{drop} are the only policies that begin with a lower case
 letter, and do not require parantheses.  
 
+\subsubsection{SendToController}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SendToController("http")} \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "location", } \\
+ & \texttt{ "value": \{ "type": "pipe", "name": "http" \} \} } 
+\end{tabularx}
+
+\python{SendToController} sends the packet to the controller.   
+
+The pipe name is an arbitrary string.  You can use it to distinguish \ldots
+
+\begin{quotation}
+\emph{Note: I'm not sure how you distinguish packets using pipes since they're not part of the 
+packet and you can't do matches on them.}
+\end{quotation}
+
 \subsubsection{SetEthDst}
 
 \bigskip
@@ -493,7 +513,8 @@ reaches its destination.
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{SetPort(1)} \\ \\
 \textsc{Raw}    & \texttt{port := 1}     \\ \\
-\textsc{REST} & \texttt{ \{ "type": "mod", "header": "port", "value": 1 \} }
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "location", } \\
+ & \texttt{ "value": \{ "type": "physical", "port": 1 \} \} } 
 \end{tabularx}
 
 \python{SetPort} sets the port destination for this packet.      
@@ -608,6 +629,7 @@ policies one after the other in the order listed.  This is explained further in 
 each of the listed policies in parallel.  This is explained further in Section \ref{section:combining}.
 
 \section{Events}
+\label{netkat_reference:events}
 
 In Python, each Frenetic event has a hook listed below.  If the application defines a handler with the same
 signature, that handler is called on the event.  If the user doesn't define a handler, a default handler is
@@ -692,6 +714,7 @@ The \python{switch_up} event is fired when the switch and OpenFlow engine are re
 operational ports connected to OpenFlow are sent in \python{ports}.  
 
 \section{Commands}
+\label{reference:commands}
 
 Commands are called from Python by calling the method listed below.  Commands may send a reply, as in
 \python{port_stats} or not, as in \python{pkt_out}.
