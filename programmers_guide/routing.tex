@@ -1,7 +1,21 @@
 \chapter{Routing}
 
 \section{Design}
- \label{routing:design}
+\label{routing:design}
+
+Every OpenFlow enabled device is called a \emph{switch}, but you should not confuse it
+with a traditional L2 switch.  An OpenFlow switch can model just about any network device
+including firewalls, load balancers, and -- as we'll see in this chapter -- routers.  
+
+In Chapter \ref{multitswitch_topologies}, we saw two ways of modelling the network topology:
+statically with a \netkat{.dot} file and dynamically via Frenetic.  One advantage of a
+static topology is you can share it between Mininet and your application.  That 
+way you can model more difficult topologies completely, and only change one file
+to change the design.  
+
+Until now we've been using Mininet's predefined topologies: simple and tree.  We
+can define a custom Mininet toplogy by writing some Python code calling the Mininet
+API's.  
 
 \section{Configuring Route Tables}
 

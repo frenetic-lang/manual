@@ -46,11 +46,11 @@ class NetworkInformationBase():
     self.ports = list_p
 
   def add_port(self, port_id):
-    if port_id not in ports:
+    if port_id not in self.ports:
       self.ports.append(port_id)
 
   def delete_port(self, port_id):
-    if port_id in ports:
+    if port_id in self.ports:
       self.ports.remove(port_id)
 
   def all_ports_except(self, in_port_id):
