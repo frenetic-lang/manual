@@ -14,18 +14,29 @@ class RouterHandler():
     self.logging = logging
     self.main_app = main_app
 
+  def policy_for_learned_mac(self, mac, dpid):
+    rp = self.nib.router_port_for_switch(dpid)
+    return EthTypeEq(0x800) & IP4DstEq()
+
+  def policies_for_learned_macs(self):
+    return Union( \
+      self.policy_for_learned_mac(mac, dpid) 
+      for (mac, dpid, _) in self.nib.all_learned_macs() 
+    )
+
   def policies_for_subnet(self, subnet, mask, port):
-    return Filter( SwitchEq(self.nib.router_dpid) & EthTypeEq(0x800) & IP4DstEq(subnet, mask) ) >> \
+    return Filter ( EthTypeEq(0x800) & IP4DstEq(subnet, mask) ) >> \
       SetEthDst("ff:ff:ff:ff:ff:ff") >> SetPort(port)
 
   def policies_for_subnets(self):
     return Union( self.policies_for_subnet(subnet,mask,port) for (subnet,mask,port) in self.nib.subnets )
 
   def policy_for_arp(self):
-    return Filter(SwitchEq(self.nib.router_dpid) & EthTypeEq(0x806)) >> SendToController("router")
+    return Filter(EthTypeEq(0x806)) >> SendToController("router")
 
   def policy(self):
-    return Union( [ self.policies_for_subnets(), self.policy_for_arp() ])
+    return Filter( SwitchEq(self.nib.router_dpid)) >> \
+      Union( [ self.policies_for_subnets(), self.policy_for_arp() ])
 
   def arp_payload(self, e, pkt):
     p = packet.Packet()

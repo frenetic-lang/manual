@@ -1,5 +1,4 @@
-import re
-import sys
+import re, sys, os
 from networkx import *
 import pygraphviz as pgv
 
@@ -52,4 +51,5 @@ def start(ip="127.0.0.1",port=6633):
   output("Press Ctrl-d or type exit to quit\n")
   CLI(net)
 
+os.system("sudo mn -c")
 start()

@@ -40,9 +40,13 @@ class NetworkInformationBase():
         return mac
     return None
 
+  def all_learned_macs(self):
+    return [ (mac, dpid, port_id) for (mac, (dpid,port_id)) in self.hosts.iteritems() ]
+
   def unlearn(self, mac):
     if mac in self.hosts:
       del self.hosts[mac]
+      self.set_dirty()
 
   def all_mac_port_pairs_on_switch(self, dpid):
     return [ (mac, self.hosts[mac][1]) for mac in self.hosts.keys() if self.hosts[mac][0] == dpid ]

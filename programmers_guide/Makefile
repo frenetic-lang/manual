@@ -38,3 +38,6 @@ frenetic_programmers_guide.pdf: frenetic_programmers_guide.tex
 
 clean:
 	latexmk -CA
+
+diagrams:
+	dot code/routing/topology.dot -Tpdf > omnigraffle/routing_topology.pdf
