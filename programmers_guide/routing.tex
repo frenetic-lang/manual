@@ -21,10 +21,10 @@ subnet number is 10.0.1 and the host is 3.  Because the host number is 8 bits, t
 host lives in a subnet with up to 256 neighbors.  Some neighbors are reserved:
 
 \begin{description}
-\item[Host 0], in this case 10.0.1.0, usually has no host assigned to it. 
-\item[Host 1], in this case 10.0.1.1, is usually the default gateway of the subnet, which we'll see in 
+\item[Host 0] in this case 10.0.1.0, usually has no host assigned to it. 
+\item[Host 1] in this case 10.0.1.1, is usually the default gateway of the subnet, which we'll see in 
 a minute.
-\item[Host $n$ - 1], in this case 10.0.1.255, is the subnet broadcast address.
+\item[Host $n$ - 1] in this case 10.0.1.255, is the subnet broadcast address.
 \end{description}
 
 This leaves you with $n$ - 3 ``real'' neighbor hosts.  You can think of a subnet as a gated community
@@ -80,24 +80,27 @@ on port 2.  But it doesn't know the MAC address of 10.0.2.3.
 \item The router broadcasts an ARP request over port 2 ``Who has 10.0.2.3?''
 \item That host responds with an ARP reply ``10.0.2.3 is at ff:ee:dd:cc:bb:aa'', which is its 
 own MAC address.
-\item Router constructs an Ethernet packet with destination ff:ee:dd:cc:bb:aa and sends it off.
+\item Router constructs an Ethernet packet with the router MAC address connected to that
+subnet as its source,
+and ff:ee:dd:cc:bb:aa as its destination and sends it off.
 \end{enumerate}
 
 A couple of things to notice here:
 
 \begin{itemize}
 \item Only IP traffic gets routed.  
-\item Only Ethernet sources and destinations are changed in the packet.  The IP addresses stay the same.
+\item Only Ethernet sources and destinations are changed in the packet.  The IP addresses
+stay the same no matter where they are in the process.
 \item A router must buffer packets until the ARP replies return.  For subsequent requests, it caches the
 IP-to-MAC translation, like a learning switch does with MACs.
 \item If the router receives a packet bound for a network not directly connected to it, the router
 itself has a default gateway it can send to.  
 \end{itemize}
 
-So the router does two basic things: answers ARP requests, and routes
+So the router does three basic things: answers ARP requests, sends ARP requests, and routes
 a packet to the ``next hop''.  Of course real routers do much more than that: they maintain routing tables,
 translate network protocols, drop blatantly malicious traffic, and so on.  But we'll concentrate 
-on the two core router functions here.
+on the three core router functions here.
 
 \section{Modeling The Topology}
 \label{routing:topo}
@@ -120,11 +123,12 @@ We've added a few more attributes to accommodate IP.  In particular:
 
 \begin{description}
 \item[router] is set to true on the device acting as the router
-\item[subnet] desginates the subnet assigned to a particular switch
 \item[ip] addresses are assigned to each host 
+\item[gateway] addresses is the default gateway to which the host sends packets.  All packets not
+bound for hosts in the same subnet go here.   
 \end{description}
 
-Here's the GraphViz generated diagram for the above:
+Here's the GraphViz generated diagram from the above:
 
 \includegraphics{routing_topology.pdf}
 
@@ -147,8 +151,7 @@ the Mininet API, documented at: http://mininet.org/api/annotated.html.  The inte
 
 In this program, we're careful to set the port ids to some defaults.  Although that's not
 technically necessary, since L2 learning will establish a table of MAC-to-port mappings,
-it makes debugging easier.  It's also natural for routers to be configured with subnet-to-port
-mappings in advance -- learning this information on the fly is prone to problems.  
+it makes debugging easier.    
 
 To run this Mininet topology, you simply run this python file as root:
 
@@ -165,15 +168,25 @@ Press Ctrl-d or type exit to quit
 mininet>
 \end{minted} 
 
+Finally, we set up a static routing table.   Subnets directly connected to a router are usually 
+configured statically in this manner, while indirectly-connected subnet entries are handled by
+a route advertising protocol like OSPF.  Our test network won't have the latter.
+
+We use simple JSON to define the subnets in \codefilename{routing/routing_table.json}:
+
+\inputminted{json}{code/routing/routing_table.json}
+
+This information isn't needed to \emph{build} the network, but it's crucial for its operation.
+
 \section{A Better Router}
 
 One of the problems with traditional routing is the ARP process.  The router must have gobs of memory 
 to buffer packets waiting for ARP replies \ldots and those replies may never arrive!  But here, SDN 
-can help us build a faster, simpler router.
+can help us build a faster router.
 
 In Chapter \ref{multiswitch_topologies} we saw how a global network view helps us build a loop-free
 network without the hassle of spanning tree.  We can use this same global network view to build
-routing without relying on ARP.  
+routing without relying as much on ARP.  
 
 The key is in the L2 learning tables.  If 10.0.1.2 wants to communicate with 10.0.2.3, we probably know
 both of their MAC addresses.  10.0.1.2 cannot simply address its packet directly to that MAC because
@@ -181,46 +194,37 @@ it's not on the same switch (and Ethernet, by itself, is not routable).  But the
 10.0.2.3's MAC address to perform the second hop.  It can skip the buffering and ARP request step
 altogether.
 
-But what if the MAC address of 10.0.2.3 is \emph{not} known?  In this case, our smarter router can simply
-``outsource'' the problem to the network switch.  It can set the destination MAC address to an 
-Ethernet broadcast and send it to switch 2.  Although this temporarily increases network traffic, it's not much
-worse than broadcasting an ARP request.  Usually the host responds quickly, causing L2 learning to 
-occur.  
+But what if the MAC address of 10.0.2.3 is \emph{not} known?  
+This looks like the case in the L2 learning switch when we simply ``punt'' and flood the packet
+over all ports.  
+Unfortunately the router can't do that with L3 packets.  If you simply stamp an Ethernet broadcast
+address in the same packet as the destination IP, the end hosts will see the packet, note that 
+the IP and MAC addresses don't match, and drop the packet.
+In this case, the router \emph{does} need
+to enqueue packets, send the ARP request, monitor the response, and release the packets when 
+their destination MAC is known.   
 
-Under these conditions, the switches don't need any modification.  When a host needs to send an 
-internetwork packet, they always start by sending the packet to the default gateway.  From that 
+Under these conditions, the L2 switches need very few modifications.  When a host needs to send an 
+internetwork packet, it always starts by sending the packet to the default gateway.  From that 
 perspective, the default gateway is no different than any other host.  If the sender knows 
 its MAC address, it simply sends it.  If it doesn't, it broadcasts an ARP request for it and the
 router responds.  
 
-The router needs to implement two kinds of rules.  The first rule is for learned MACs.  For each
-$mac$ and address $ip$, you first determine the router port $rp$.  That can be calculated since
+The router needs to implement a rule for each learned MAC in the network.  For each
+$mac$ and address $ip$, you first determine the router port $rp$ and the MAC address of that
+port $rtrmac$.  That can be calculated since
 we know which subnet is connected to each router port.  Then we write the rule:
 
 \begin{minted}{python}
 Filter(EthTypeEq(0x800) & IP4DstEq(ip)) >> \
-  SetEthDst(mac) >> SetPort(rp) 
+  SetEthSrc(rtrmac) >> SetEthDst(mac) >> SetPort(rp) 
 \end{minted}
 
-Then we write a catch-all rule for any hosts in the subnet that we don't know yet.  Here, $subnet$
-and $mask$ are the subnet we're matching and $rp$ is the router port to which it's connected
+Two more things: we need to catch all remaining unlearned IP destinations, and 
+we need to catch all ARP requests so that we can answer requests for the default gateway:
 
 \begin{minted}{python}
-Filter(EthTypeEq(0x800) & IP4DstEq(subnet, mask)) >> \
-  SetEthDst("ff:ff:ff:ff:ff:ff") >> SetPort(rp) 
-\end{minted}
-
-This appears to overlap with previous rule since a host match like 10.0.1.3 should trigger the 
-subnet match of 10.0.1.0/24.  But OpenFlow actually guards against this - if there are multiple 
-IP matching rules, the most specific always wins.  So we can \netkat{Union} these
-rules together without having to sue \netkat{IfThenElse}.  
-
-Note that unlike switches, no learning occurs in a router.  We rely on the switches to do all the
-MAC learning for us, which works well because no hosts directly connect to the router.  However,
-we do need to catch all ARP requests so that we can answer requests for the default gateway:
-
-\begin{minted}{python}
-Filter(EthTypeEq(0x806) ) >> SendToController("router") 
+Filter(EthTypeEq(0x800, 0x806) ) >> SendToController("router") 
 \end{minted}
 
 Note that we don't need to \emph{answer} all ARP requests, necessarily \ldots and in fact we'll see
@@ -247,6 +251,12 @@ them to share state.  But learning a new MAC on the switch should trigger a poli
 the router.  Rather than coding this dependency into the router (which then couples it to the switch 
 handler), we handle the recalculation here.  
 
+The recalculation uses a trick from the Tornado Python library.  If you simply call the 
+\python{update_and_clear_dirty()} function, many successive packets may cause the updates to 
+happen in a random order since the requests are handled asynchronously.  This can cause older
+calculated rules sets to overwrite newer ones.  By using \python{IOLoop.add_timeout()}, we enqueue
+all the recalculations so they occur in order.  
+
 There's not a lot of code in this app -- most of the actual work is delegated to the handlers
 \python{SwitchHandler} and \python{RouterHandler}.  Each handler does two main tasks: (a) review
 incoming packets and (b) contribute their portion of the network-wide policy based on the NIB.  
@@ -256,25 +266,79 @@ In this app, all the handler workflow is hard-coded, but you can imagine a more 
 main program that would register handlers and dynamically delegate events based on signatures. 
 That's overkill for our routing application.
 
-The NIB looks a lot like the one for multiswitch handling, from \codefilename{routing/network_information_base.py}:
+The NIB, in \codefilename{routing/network_information_base.py} looks a lot like the NIB
+we use in multiswitch handling.  IP information, though, makes the tables a bit wider, 
+so we move to using objects instead of tuples.  These two classes model devices (connected hosts
+and gateways) and subnets.    
 
-\inputminted{python}{code/routing/network_information_base.py}  
+\inputminted[firstline=5,lastline=31]{python}{code/routing/network_information_base.py} 
 
-The main addition is a \python{dirty} bit
+The hosts table is now a dictionary of MAC addresses to \python{ConnectedDevice} instances. 
+
+The initialization procedure reads the fixed configuration from the Routing Table and topology
+files.  It follows the same general outline as the Mininet custom configurator.
+
+\inputminted[firstline=56,lastline=87]{python}{code/routing/network_information_base.py} 
+
+The learning procedure adds the IP field, which may be passed in as \python{None}
+for non-IP packets.  The first packet from a device might very well be non-IP, as in a DHCP 
+request (even though DHCP asks for an IP address, the DHCP packet itself is not an IP packet).
+That might trigger learning on the L2 switch, which records its port and MAC, but no IP address.  
+The router can later call this procedure to fill in the missing IP.  
+
+The NIB now has \python{dirty} flag
 which learning/unlearning a MAC can set or.  The main handler uses this to determine whether to do 
 a wholesale recalculation of the switch and router policies.
 
+\inputminted[firstline=186]{python}{code/routing/network_information_base.py} 
+
 The switch handler is virtually identical to the switching application of Chapter \ref{multiswitch}.  
+The main difference is extra handling in the MAC learning procedure -- if the packet is an
+IP packet, we extract the extra IP address and learn that as well.  One important except is the 
+\emph{internal port}, meaning any ports connected to other switches or routers.  Because the 
+routing process changes the Ethernet Source MAC, we can't count on it to match the Source IP address,
+which itself never changes.  So though we learn the MAC and port of an internal port, we ignore the
+IP address of any packets arriving there.  
+
 This code is from \codefilename{routing/switch_handler.py}:
 
-\inputminted{python}{code/routing/switch_handler.py}
+\inputminted[firstline=33]{python}{code/routing/switch_handler.py}
 
-The main changes are the removal of switch connection code.
+The interesting processing happens in \codefilename{routing/router_handler.py}. First, we set up 
+objects to hold queued packets waiting for an ARP reply:
 
-The interesting processing happens in \codefilename{routing/router_handler.py}:
+\inputminted[firstline=8,lastline=12]{python}{code/routing/router_handler.py} 
 
-\inputminted{python}{code/routing/router_handler.py}
+Policies are constructed from the learned MAC table, similarly to the switches.  The big differences
+are we look at the entire network-wide MAC table, and we look only at those entries with IP 
+addresses.
+
+\inputminted[firstline=27,lastline=55]{python}{code/routing/router_handler.py} 
 
 Here you can see the learned MAC policies, the catch-all subnet policies, and the ARP policy are 
 installed.  ARP replies are constructed from scratch using the RYU packet library described in
-Section \ref{introduction:packet_in}.
+Section \ref{introduction:packet_in}:
+
+\inputminted[firstline=97,lastline=115]{python}{code/routing/router_handler.py} 
+
+The Packet In handler deals primarily with ARP requests and replies:
+
+\inputminted[firstline=117,lastline=156]{python}{code/routing/router_handler.py} 
+
+And with IP packets:
+
+\inputminted[firstline=158]{python}{code/routing/router_handler.py} 
+
+The queuing and dequeuing procedures are straightforward.  Note that a huge stream of packets to a 
+disconnected IP address could easily overwhelm this implementation, and so caps on the queues should
+probably be enforced:
+
+\inputminted[firstline=57,lastline=96]{python}{code/routing/router_handler.py} 
+
+\section{Summary}
+
+The IP routing process need a summary.  
+
+In the next chapters, we build on layer three technology.  In chapter \ref{} we build Network Address Translation
+which is like routing but changes the IP address and ports as well.  From there it's a small step to 
+Firewall and Load Balance technology.  

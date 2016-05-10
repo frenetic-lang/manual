@@ -9,10 +9,9 @@ class RoutingApp(frenetic.App):
 
   client_id = "routing"
 
-  def __init__(self, topo_file="topology.dot"):
+  def __init__(self, topo_file="topology.dot", routing_table_file="routing_table.json"):
     frenetic.App.__init__(self)     
-    self.nib = NetworkInformationBase(logging)
-    #self.nib.load_topo(topo_file)
+    self.nib = NetworkInformationBase(logging, topo_file, routing_table_file)
 
     self.switch_handler = SwitchHandler(self.nib, logging, self)
     self.router_handler = RouterHandler(self.nib, logging, self)
@@ -40,8 +39,8 @@ class RoutingApp(frenetic.App):
 
     if self.nib.is_dirty():
       logging.info("Installing new policy")
-      # This doesn't actually wait two seconds, but it seems to serialize the updates so they occur in the right
-      # order, as opposed to just calling update_and_clear_dirty on its own.
+      # This doesn't actually wait two seconds, but it serializes the updates 
+      # so they occur in the right order
       IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.update_and_clear_dirty)
 
   def port_down(self, dpid, port_id):

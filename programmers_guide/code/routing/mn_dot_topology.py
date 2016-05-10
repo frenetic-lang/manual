@@ -1,6 +1,7 @@
 import re, sys, os
 from networkx import *
 import pygraphviz as pgv
+from net_utils import NetUtils
 
 # Mininet imports
 from mininet.log import lg, info, error, debug, output
@@ -8,9 +9,6 @@ from mininet.util import quietRun
 from mininet.node import Host, OVSSwitch, RemoteController
 from mininet.cli import CLI
 from mininet.net import Mininet
-
-def int_from_mac_colon_hex(mch):
-  return int(mch.replace(":",""), 16);
 
 def start(ip="127.0.0.1",port=6633):
 
@@ -23,18 +21,16 @@ def start(ip="127.0.0.1",port=6633):
     if node.startswith("s"):
       net.addSwitch(node, dpid=str(node.attr['dpid']))
     else:
-      # TODO: Need better way to do this
-      gw = "10.0.2.1" if node.attr['ip'].startswith("10.0.2") else "10.0.1.1"
-      net.addHost( \
+      net.addHost(
         node, 
         mac=node.attr['mac'], 
         ip=node.attr['ip'], 
-        defaultRoute="dev "+node+"-eth0 via "+gw
+        defaultRoute="dev "+node+"-eth0 via "+node.attr['gateway']
       )
 
   for link in topo_agraph.edges():
     (src_node, dst_node) = link
-    net.addLink(src_node, dst_node, \
+    net.addLink(src_node, dst_node,
       int(link.attr['src_port']), 
       int(link.attr['dport']) 
     )
