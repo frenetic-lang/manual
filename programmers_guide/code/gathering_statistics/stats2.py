@@ -12,17 +12,23 @@ class StatsApp2(frenetic.App):
   def __init__(self):
     frenetic.App.__init__(self)  
 
-  def http_filter(self):
-    return Filter( 
-      EthTypeEq(0x800) &
-      IPProtoEq(6) &
-      TCPSrcPortEq(80)
-    ) 
+  def repeater_policy(self):
+    return Filter(PortEq(1)) >> SetPort(2) | Filter(PortEq(2)) >> SetPort(1) 
+
+  def http_predicate(self):
+    return PortEq(1) & EthTypeEq(0x800) & IPProtoEq(6) & TCPDstPortEq(80)
+
+  def policy(self):
+    return IfThenElse(
+      self.http_predicate(), 
+      Mod(Location(Query("http"))) | SetPort(2), 
+      self.repeater_policy()
+    )
 
   def connected(self):
     def handle_current_switches(switches):
       logging.info("Connected to Frenetic - Switches: "+str(switches))
-      self.update( self.http_filter() >> Mod(Location(Query("http_crapola"))) )
+      self.update( self.policy() )
       PeriodicCallback(self.query_http, 5000).start()
     self.current_switches(callback=handle_current_switches)
 

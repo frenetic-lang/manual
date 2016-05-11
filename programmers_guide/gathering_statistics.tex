@@ -9,9 +9,13 @@ Frenetic has two statistics-gathering mechanisms:
 
 \begin{itemize}
 \item The \netkat{port_stats} command gets per-port statistics.
-\item The \netkat{Output(Query))} policy gathers user-defined statistics.  You can use this in switch
+\item The \netkat{SetQuery} policy gathers user-defined statistics.  You can use this in switch
 policies or \netkat{pkt_out} actions, and aggregate them.
 \end{itemize}
+
+\begin{quotation}
+\emph{SetQuery is not in the current Python bindings, but will be.  See Issue \#491 on Github}
+\end{quotation}
 
 \subsection{Modularizing Your Application}
 
@@ -93,3 +97,62 @@ What per-port statistics are available?  The following table gives you a list:
 These are the per-port statistics defined in OpenFlow 1.0.  
 
 \section{Queries}
+
+You can also gather statistics based on NetKAT rules.  This is called a \emph{query} and you can think 
+of a query as just another location to send packets, like \netkat{SetPort} or \netkat{SetPipe}.
+So Principle TODO applies here.  Recall that a packet can have only one destination: a port, a pipe or a 
+query.  If you want packets to go to more than one destination, you need to use \netkat{Union} between
+them so packet copies are made.
+
+Unlike per-port statistics, a query only counts two things:
+
+\begin{description}
+\item[0] Number of packets  
+\item[1] Number of bytes  
+\end{description}
+
+You call the \python{self.query()} command to get the current counts for this query at any time.
+
+The following code is in \codefilename{gathering_statistics/stats2.py}:
+
+\inputminted{python}{code/gathering_statistics/stats2.py}
+
+So here, we set up a query called \python{"http"} and use it as a location to send packets.  The rule 
+counts only HTTP requests initiated from port 1.  Every five minutes, we ask for a current count
+from the query.  We can simulate an HTTP in Mininet like this:
+
+\begin{minted}{console}
+vagrant@frenetic:~$ sudo mn --topo=single,2 --controller=remote --mac
+*** Creating network
+*** Adding controller
+Unable to contact the remote controller at 127.0.0.1:6633
+*** Adding hosts:
+h1 h2
+*** Adding switches:
+s1
+*** Adding links:
+(h1, s1) (h2, s1)
+*** Configuring hosts
+h1 h2
+*** Starting controller
+c0
+*** Starting 1 switches
+s1 ...
+*** Starting CLI:
+mininet> h2 python -m SimpleHTTPServer 80 &
+mininet> h1 curl 10.0.0.2
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2 Final//EN"><html>
+
+ ... More output 
+\end{minted}
+
+And the output changes when the request is initiated:
+
+\begin{minted}{console}
+Starting the tornado event loop (does not return).
+2016-05-11 14:51:46,565 [INFO] Connected to Frenetic - Switches: {1: [2, 4, 1, 3]}
+2016-05-11 14:52:06,572 [INFO] Count: {packets = 0, bytes = 0}
+2016-05-11 14:52:11,571 [INFO] Count: {packets = 0, bytes = 0}
+2016-05-11 14:58:18,802 [INFO] Count: {packets = 11, bytes = 806}
+2016-05-11 14:58:23,802 [INFO] Count: {packets = 11, bytes = 806}
+\end{minted}
