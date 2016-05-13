@@ -11,11 +11,23 @@ class NetworkInformationBase():
   # For this incarnation, we assume the switch with dpid = 1 is the core switch
   core_switch_dpid = 1
 
+  # And hardcode the router ports
+  port_for_dpid = {2:1, 3:2, 4:3, 5:4}
+
+  # And the edge switches all have the same port as their uplink
+  edge_uplink_port = 5
+
   def __init__(self, logger):
     self.logger = logger
 
-  def switch_dpids(self):
+  def edge_switch_dpids(self):
     return [dpid for dpid in self.ports.keys() if dpid != self.core_switch_dpid]
+
+  def core_port_for_edge_dpid(self, dpid):
+    return self.port_for_dpid[dpid]
+
+  def is_internal_port(self, dpid, port_id):
+    return dpid == self.core_switch_dpid or port_id == self.edge_uplink_port
 
   def learn(self, mac, dpid, port_id):
     # Do not learn a mac twice
@@ -49,6 +61,14 @@ class NetworkInformationBase():
   def all_learned_macs_on_switch(self, dpid):
     return [
       mac for mac in self.hosts.keys() if self.hosts[mac][0] == dpid 
+    ]
+
+  def all_learned_macs(self):
+    return self.hosts.keys()
+
+  def all_mac_dpid_pairs(self):
+    return [ 
+      (mac, self.hosts[mac][0]) for mac in self.hosts.keys()
     ]
 
   def set_all_ports(self, switch_list):

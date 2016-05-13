@@ -68,6 +68,16 @@ And packets for unlearned MACs are handled by \python{packet_in}:
 
 \inputminted[firstline=56,lastline=80]{python}{code/multiswitch_topologies/multiswitch1.py}
 
+Here, we have to be a bit careful.  In a one-switch setup, we simply learn all packets coming in
+on all ports.  But in a multi-switch setup, we only want to learn MACs from packets coming from
+directly connected hosts.  A packet coming from a core switch comes into the \emph{uplink port}
+sometimes called an \emph{internal port} because it's on an internal edge of the topology
+graph.  
+Such a packet represent many MACs from many hosts.  Even though those hosts may have been learned on their
+ingress switches, preventing learning here, timing may cause the rules not to be installed yet.
+To keep things perfectly clear, we explicitly deny learning of MAC's arriving on an internal port.
+(In our first carnation, these ports are hardcoded, but we'll make it dynamic later).
+
 Now for the core switch.  In our first incarnation, we'll take a naive approach.  We'll make it like
 a repeater -- packets coming in port $p$ will be flooded out all non-$p$ ports.  This would cause problems
 in a topology with loops, but our fixed topology has no loops in it and so is safe.  The edge
@@ -116,9 +126,80 @@ h4 -> h1 h2 h3 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16
 
 \section{Network-Wide Learning}
 
-This is 
+Out first application works, but it's pretty inefficient.  In particular:
+
+\begin{itemize}
+\item The core switch simply floods to all the switches, even when it knows where the desination switch 
+and port is.  If it knows the egress switch, it should send it to that switch.  
+\item Packets with an unknown destination (but a known source) get flooded out the ingress switch.  
+These packets come to the controller, but they don't really need to.  They could just as well be flooded 
+by a switch rule.  
+\end{itemize}
+
+So let's write some rules to handle these cases.  We need to be careful not to create loops or broadcast
+storms in the process.  
+
+First we'll do the core switch.  For every destination MAC we have learned, we know its connected to
+switch $sw$ at port $p$.  Actually port $p$ doesn't matter to the core switch -- it just needs to know
+which core port will get it to the egress switch $sw$.  Suppose that port is $cp$.  Then the rule will look
+like:
+
+\begin{minted}{python}
+Filter(SwitchEq(core) & EthDstEq(mac)) >> SetPort(cp) 
+\end{minted}
+
+First, let's factor out the port flooding policy. 
+This policy will flood all packets to all other ports on the switch.  
+It will be our fallback policy for all destination MACs
+we don't know.  
+
+The following code is in \codefilename{multiswitch_topologies/multiswitch2.py}:
+
+\inputminted[firstline=22,lastline=32]{python}{code/multiswitch_topologies/multiswitch2.py}
+
+Next, this policy constructs the learned MAC rules.  Since there's no overlap here, a simple
+\netkat{Union} can be used to combine them.  (We have factored out the \netkat{SwitchEq} filter
+because we'll use it for the entire switch rule.)
+
+\inputminted[firstline=62,lastline=70]{python}{code/multiswitch_topologies/multiswitch2.py}
+
+Finally, the entire core switch policy puts them together.  Flooding rules and learned MAC rules have
+considerable overlap -- you can imagine a packet destined for a learned MAC (which matches a learned
+MAC rule) which comes in a core switch port (which matches a flooding rule).  So we use \netkat{IfThenElse}
+to disambiguate them.  And here we pop on the filter for the core switch, neatly factoring it out 
+of the individual rules:
+
+\inputminted[firstline=72,lastline=80]{python}{code/multiswitch_topologies/multiswitch2.py}
+
+OK, now for the edge switches.  We basically want to refactor the rule into the following psuedocode:
+
+\begin{minted}{python}
+if unlearned(src_mac) and not internal_port(port):  
+  learn(src_mac)    # Send to controller
+elif on_switch(dpid, dst_mac):
+  send_directly()
+else:
+  flood()
+\end{minted}
+
+Like our previous application, we have to be careful not to learn MACs arriving on internal ports.
+But here, since we're relying on the rules to do the flooding, not the controller, we have to 
+explicitly filter out internal ports from the learning process with NetKAT predicates.
+
+The new edge switch rule follows this psuedocode skeleton:
+
+\inputminted[firstline=34,lastline=54]{python}{code/multiswitch_topologies/multiswitch2.py}
+
+The remaining code stays the same.  Now doing a Ping All in Mininet is a much faster experience -- once all the
+ports are learned (h1 pings each host in turn first, so that does the learning), no packets hit the controller.
+Very nice!
 
 \section{Calculating Shortest Paths}
+
+To get to this point, we've had to effectively hard-code the network topology into the program.  It makes 
+some assumptions too, for instance that the uplink port is always 5 on an edge switch.  
+
+
 
 \section{Dynamic Toplogy Using Frenetic}
 
