@@ -194,12 +194,29 @@ The remaining code stays the same.  Now doing a Ping All in Mininet is a much fa
 ports are learned (h1 pings each host in turn first, so that does the learning), no packets hit the controller.
 Very nice!
 
+\begin{quotation}
+\emph{NOTE:  ARP doesn't work very well with this, but it's unclear why.  h1 sends an ARP request for
+h2, \ldots but it's unclear whether the request is flooded properly by the controller, or whether the
+reply comes back.  This is true for all hosts, intranet or internet.  But once the flow table is complete,
+everything works fine including (presumably) ARP requests.   Using the arp command switch in Mininet 
+and the problem doesn't happen at all.   }
+\end{quotation}
+
+
 \section{Calculating Shortest Paths}
 
 To get to this point, we've had to effectively hard-code the network topology into the program.  It makes 
 some assumptions too, for instance that the uplink port is always 5 on an edge switch.  
 
+\begin{minted}{console}
+mininet> py net.addLink(s2, s6) 
+<mininet.link.Link object at 0x7fd432ace810>
+mininet> link s2 s6 up
+\end{minted}
 
+\begin{minted}{console}
+dot -Tpdf multiswitch_topo.dot -o multiswitch_topo.pdf
+\end{minted}
 
 \section{Dynamic Toplogy Using Frenetic}
 

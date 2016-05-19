@@ -1,8 +1,140 @@
+% !TEX root = frenetic_programmers_guide.tex
+
 \chapter{Productionalizing}
+
+Once you have your Frenetic-based application written and debugged on Mininet, you can run it in on a 
+physical network testbed or in production.  
 
 \section{Installing Frenetic on Bare Metal Linux}
  \label{productionalizing:install}
+ 
+We've been running all of our experiments in Virtual Machines, and you can certainly use VM's for
+production as well.  You simply need to set up port forwarding for the OpenFlow port (6633 by 
+default on OpenFlow 1.0).  To do this, you can add the following to the file \codefilename{Vagrantfile}:
+
+\inputminted[firstline=29,lastline=30]{ruby}{code/productionalizing/Vagrantfile} 
+
+In production, however, the speed of delivering Packet In's, Packet Out's, and rules to switches is crucial so
+removing the extra VM network stack overhead makes sense.
+
+To install Frenetic and your network application on a bare metal server, first install Ubuntu Server 14.04.  
+This is the OS used by Frenetic VM.  
+
+Next install Git from your administrative login:
+
+\begin{minted}{console}
+ubuntu@ubuntu:~$ sudo apt-get update
+ubuntu@ubuntu:~$ sudo apt-get install git
+\end{console}
+
+Retrieve the code from the Frenetic-vm Github repository:
+
+\begin{minted}{console}
+ubuntu@ubuntu:~$ git clone https://github.com/frenetic-lang/frenetic-vm
+\end{console}
+
+Then run the administrative provisioning script.  This installs all the supporting software for 
+Frenetic, and should take somewhere from 5 to 30 minutes.
+
+\begin{minted}{console}
+ubuntu@ubuntu:~$ cd frenetic-vm
+ubuntu@ubuntu:~/frenetic-vm$ sudo ./root-bootstrap.sh 
+\end{console}
+
+Create a non-root user under which Frenetic and the application will run.  In our examples, we will
+use \codefilename{frenetic} user:
+
+\begin{minted}{console}
+ubuntu@ubuntu:~$ sudo adduser frenetic
+Adding user `frenetic' ...
+Adding new group `frenetic' (1001) ...
+Adding new user `frenetic' (1001) with group `frenetic' ...
+Creating home directory `/home/frenetic' ...
+Copying files from `/etc/skel' ...
+Enter new UNIX password:
+Retype new UNIX password:
+passwd: password updated successfully
+Changing the user information for frenetic
+Enter the new value, or press ENTER for the default
+	Full Name []:
+	Room Number []:
+	Work Phone []:
+	Home Phone []:
+	Other []:
+Is the information correct? [Y/n]
+\end{minted}
+
+Add the \codefilename{frenetic} user to do the \codefilename{/etc/sudoers} file so it can perform administrative
+tasks.  This is required for the next scripts to run, and if you wish, you can revoke sudo permissions
+afterwards (they are not required to run Frenetic or the network application):
+
+\begin{minted}{console}
+ubuntu@ubuntu:~$ sudo adduser frenetic sudo
+Adding user `frenetic' to group `sudo' ...
+Adding user frenetic to group sudo
+Done.
+\end{minted}
+
+Copy the \codefilename{user-bootstrap.sh} script to the \codefilename{frenetic} user's workspace:
+
+\begin{minted}{console}
+ubuntu@ubuntu:~/frenetic-vm$ sftp frenetic@localhost
+The authenticity of host 'localhost (127.0.1.1)' can't be established.
+ECDSA key fingerprint is 3c:f4:ba:46:f0:b7:1f:74:cd:34:33:f9:12:5e:3a:3e.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'localhost' (ECDSA) to the list of known hosts.
+frenetic@localhost's password:
+Connected to localhost.
+sftp> put user-bootstrap.sh
+Uploading user-bootstrap.sh to /home/frenetic/user-bootstrap.sh
+user-bootstrap.sh                                                                                 100%  296     0.3KB/s   00:00
+sftp> quit
+\end{minted}
+
+Then switch over to the \codefilename{frenetic} workspace and run the script.  This installs and 
+compiles the latest version of Frenetic, and takes about 15 minutes.
+
+\begin{minted}{console}
+ubuntu@ubuntu:~$ sudo -i -u frenetic
+frenetic@ubuntu:~$ mkdir src
+frenetic@ubuntu:~$ chmod u+x user-bootstrap.sh
+frenetic@ubuntu:~$ ./user-bootstrap.sh
+\end{minted}
+
+Lastly, you need to retrieve your network application code and store it in the \codefilename{frenetic}
+user's workspace.  We generally store network applications
+in Github and just use Git tools to retrieve the latest Master copy.  That way it's easy to 
+update later.  In the examples below, we'll assume the network application is in 
+\codefilename{src/l2_learning_switch/learning4.py}.  
 
 \section{Control Scripts}
 
-\section{Logging}
+Ubuntu 14.04 includes the Upstart utility to wrap programs as daemons.  This is handy for 
+starting and stopping both Frenetic and your network application.  Creating Upstart scripts
+for both handles logging, and automatically starting up the daemons from a cold boot.
+
+Here is a sample Upstart script for Frenetic, which you can place in 
+\codefilename{/etc/init/frenetic.conf} (you must do this with \codefilename{sudo}):
+
+\inputminted{bash}{code/productionalizing/frenetic.conf} 
+
+And here is one for your network application.  We'll assume the network application is in 
+\codefilename{src/l2_learning_switch/learning4.py}.  
+
+\inputminted{bash}{code/productionalizing/l2_learning_switch.conf} 
+
+And you can control both processes with standard Ubuntu commands:
+
+\begin{description}
+\item[sudo service frenetic start] Starts the Frenetic controller.  Note, only one copy can be running, so
+issuing it when Frenetic is already running does nothing.   
+\item[sudo service frenetic stop] Stops the Frenetic controller.
+\item[sudo service frenetic status] Displays the status of Frenetic - whether it's running or not.
+\end{description}
+
+The commands are similar for the network application \codefilename{l2_learning_switch}.  
+
+One nice feature of Upstart is logging.  Using the Upstart script for Frenetic as above places the logs 
+in \codefilename{/var/log/upstart/frenetic.log}.  By default logs are rotated daily, compresssed, and 
+deleted after 7 days.  
+

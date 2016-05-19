@@ -44,7 +44,7 @@ class MultiswitchApp2(frenetic.App):
       Filter(SwitchEq(dpid)) >> \
       IfThenElse(
         EthSrcNotEq( nib.all_learned_macs_on_switch(dpid) ) &
-          PortNotEq(nib.edge_uplink_port),
+          PortNotEq(nib.uplink_port_for_dpid(dpid)),
         SendToController("multiswitch"),
         IfThenElse( 
           EthDstEq( nib.all_learned_macs_on_switch(dpid) ),
@@ -70,7 +70,7 @@ class MultiswitchApp2(frenetic.App):
     )
 
   def policy_for_core_switch(self):
-    core_dpid = self.nib.core_switch_dpid
+    core_dpid = self.nib.core_switch_dpids()[0]
     return \
       Filter(SwitchEq(core_dpid)) >> \
       IfThenElse(
