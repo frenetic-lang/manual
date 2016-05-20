@@ -1,4 +1,4 @@
-class NetworkInformationBase():
+class NetworkInformationBase(object):
 
   # ports on switch
   ports = []

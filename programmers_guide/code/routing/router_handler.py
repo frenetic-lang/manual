@@ -5,15 +5,13 @@ from ryu.lib.packet import packet, ether_types, ethernet, arp
 from ryu.ofproto import ether
 from network_information_base import *
 
-class WaitingPacket():
+class WaitingPacket(object):
   def __init__(self, dpid, port_id, payload):
     self.dpid = dpid
     self.port_id = port_id
     self.payload = payload
 
-class RouterHandler():
-
-  client_id = "router"
+class RouterHandler(object):
 
   # A list of outstanding ARP requests and packets waiting for the reply
   # { "10.0.1.2" => [WaitingPacket(), WaitingPacket(), ...] }

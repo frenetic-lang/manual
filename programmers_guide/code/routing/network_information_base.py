@@ -2,7 +2,7 @@ import json
 import pygraphviz as pgv
 from net_utils import NetUtils
 
-class ConnectedDevice():
+class ConnectedDevice(object):
   dpid = None
   port_id = None
   ip = None
@@ -18,7 +18,7 @@ class ConnectedDevice():
     return str(self.ip)+"/"+self.mac+ \
       " attached to ( "+str(self.dpid)+" , "+str(self.port_id)+" )"
 
-class Subnet():
+class Subnet(object):
   dpid = None
   subnet_cidr = None
   router_port = None
@@ -30,7 +30,7 @@ class Subnet():
     self.router_port = router_port
     self.gateway = gateway
 
-class NetworkInformationBase():
+class NetworkInformationBase(object):
 
   # hosts is a dictionary of MAC addresses to ConnectedDevice
   #  { "11:11:11:11:11:11": ConnectedDevice() ...}

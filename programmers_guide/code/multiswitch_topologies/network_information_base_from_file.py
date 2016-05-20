@@ -2,7 +2,7 @@ import sys
 import pygraphviz as pgv
 import networkx as nx
 
-class NetworkInformationBaseFromFile():
+class NetworkInformationBaseFromFile(object):
 
   # hosts is a dictionary of MAC addresses to (dpid, port) tuples
   #  { "11:11:11:11:11:11": (1234867, 1) ...}

@@ -1,4 +1,4 @@
-class NetworkInformationBaseStatic():
+class NetworkInformationBaseStatic(object):
 
   # hosts is a dictionary of MAC addresses to ports
   #  { "11:11:11:11:11:11": 2, ...}

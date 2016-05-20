@@ -1,6 +1,6 @@
 from datetime import datetime
 
-class Flow():
+class Flow(object):
   INCOMING = 0
   OUTGOING = 1
 
@@ -19,7 +19,7 @@ class Flow():
     return (self.src_ip, self.src_tcp_port, self.dst_ip, self.dst_tcp_port) == \
       (other.src_ip, other.src_tcp_port, other.dst_ip, other.dst_tcp_port)
 
-class NetworkInformationBase():
+class NetworkInformationBase(object):
   dpid = None
 
   # In a real network, this would be dynamically configured

@@ -3,7 +3,7 @@ from frenetic.syntax import *
 from ryu.lib.packet import ethernet, ether_types, ipv4, arp
 from network_information_base import *
 
-class SwitchHandler():
+class SwitchHandler(object):
 
   def __init__(self, nib, logger, main_app):
     self.nib = nib

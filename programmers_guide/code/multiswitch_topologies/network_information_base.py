@@ -1,4 +1,4 @@
-class NetworkInformationBase():
+class NetworkInformationBase(object):
 
   # hosts is a dictionary of MAC addresses to (dpid, port) tuples
   #  { "11:11:11:11:11:11": (1234867, 1) ...}
