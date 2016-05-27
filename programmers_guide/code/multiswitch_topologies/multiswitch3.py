@@ -70,7 +70,6 @@ class MultiswitchApp3(frenetic.App):
     )
 
   def policy_for_core_switch(self, core_dpid):
-    core_dpid = self.nib.core_switch_dpids()[0]
     return \
       Filter(SwitchEq(core_dpid)) >> \
       IfThenElse(
@@ -89,7 +88,6 @@ class MultiswitchApp3(frenetic.App):
     return self.policy_for_core_switches() | self.policy_for_edge_switches()
 
   def packet_in(self, dpid, port_id, payload):
-    logging.info("Packet In")
     nib = self.nib
 
     # If we haven't learned the ports yet, just exit prematurely

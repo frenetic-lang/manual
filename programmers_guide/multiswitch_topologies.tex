@@ -198,15 +198,94 @@ Very nice!
 \emph{NOTE:  ARP doesn't work very well with this, but it's unclear why.  h1 sends an ARP request for
 h2, \ldots but it's unclear whether the request is flooded properly by the controller, or whether the
 reply comes back.  This is true for all hosts, intranet or internet.  But once the flow table is complete,
-everything works fine including (presumably) ARP requests.   Using the arp command switch in Mininet 
+everything works fine including (presumably) ARP requests.   Use the arp command switch in Mininet 
 and the problem doesn't happen at all.   }
 \end{quotation}
 
 
-\section{Calculating Shortest Paths}
+\section{Calculating Loop-Free Paths}
 
-To get to this point, we've had to effectively hard-code the network topology into the program.  It makes 
-some assumptions too, for instance that the uplink port is always 5 on an edge switch.  
+To get to this point, we've had to effectively hard-code the network topology into the program.  The next step
+is to extend it to work with \emph{any} topology.  
+
+The basic problem is: given two host endpoints and a topology, what is the shortest path through the switches 
+connecting those hosts?  Once you have that, you can generate a rule for each switch -- basically the 
+rule will forward packets one hop closer to the destination.  In effect, our first programs hard-coded the shortest
+path solutions because they were trivial for that topology:
+
+\begin{itemize}
+\item If the destination is on the same switch as the source, just forward it out the right port.
+\item If it's not, forward it to the core switch, then to the destination edge switch, then out the right port.
+\end{itemize}
+
+If you had never worked with computer networks you'd think we could stop there.  Computing shortest paths
+is an easy graph theoretical problem, and we could just have a library do it.  Not only that, you could
+just connect every switch to every other switch, and the number of hops between any two hosts would be 
+two.  
+
+The only trouble is \ldots there is flooding.  If every switch is connected to every switch, and you copy
+a packet to all the ports at once, it'll eventually arrive back at the source switch and get flooded again
+and again.  This is called a \emph{broadcast storm} and it'll eventually grind the network to a halt.  
+And you can't just get rid of flooding.  Even if get rid of Ethernet broadcasts, flooding is a major part
+of L2 learning -- it's how you deal with packets going to as-yet-unlearned destinations.
+
+One way to have total connectivity without loops is to calculate the \emph{spanning tree} of the topology.
+In a spanning tree, all switches are indirectly connected by some path, but the total collection of
+paths contains no loops.  As long as flooding occurs only along the paths of the spanning tree (and
+not out the ingress port too, of course), no broadcast storms are possible.   This spanning tree
+might not be optimal in a shortest path sense -- it might force some host-to-host paths to be longer than 
+they could be.  But the added safety is well-worth the cost.  
+
+Traditional Ethernet networks use a protocol like STP to cooperatively decide on the spanning tree.  STP is 
+interesting but it's complex and slow to converge.  The problem is no one switch has a total view of the 
+network -- it only knows its neighbors.  
+
+SDN doesn't have that problem.  The controller effectively can use a
+global view of the network, from which it calculates the spanning tree and pushes the resulting rules to all
+the switches at once.  
+
+But how does it get that global view of the topology, especially when switches can dynamically enter and leave the
+network?  Let's defer that question to the next section, and for now focus on a fixed toplogy, but one that can be
+defined outside of the program itself.  Once we build the infrastructure that calculates the spanning tree
+and forwarding rules from this topology, we can generalize it to dynamic toplogies.  
+
+There are many different file formats for specifying a network topology.  We're going to use the popular
+\emph{GraphViz} file format.  GraphViz files can be read from lots of different programming languages, and can easily
+be turned into visible graphs.  In Python, it's also easy to interface GraphViz files with the popular 
+graph theory library NetworkX.  We can then leverage NetworkX's spanning tree and shortest-path 
+algorithms rather than writing our own.  Nice!
+
+To make this topology more interesting, we're going to use a Mininet tree topology with depth 3 and fanout 3.
+That'll give us 1 at the top level, three at the second level, and nine at the third level
+for a total of $1 + 3 + 9 = 13$ switches and three hosts connected to the 9 level 3 switches, for a total of 27
+hosts:
+
+\begin{minted}{console}
+vagrant@frenetic:~$ sudo mn --topo=tree,3,3 --controller=remote --mac
+*** Creating network
+*** Adding controller
+Unable to contact the remote controller at 127.0.0.1:6633
+*** Adding hosts:
+h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17 h18 h19 h20 h21 h22 h23 h24 h25 h26 h27
+*** Adding switches:
+s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13
+*** Adding links:
+(s1, s2) (s1, s6) (s1, s10) (s2, s3) (s2, s4) (s2, s5) (s3, h1) (s3, h2) (s3, h3) (s4, h4) 
+(s4, h5) (s4, h6) (s5, h7) (s5, h8) (s5, h9) (s6, s7) (s6, s8) (s6, s9) (s7, h10) (s7, h11) 
+(s7, h12) (s8, h13) (s8, h14) (s8, h15) (s9, h16) (s9, h17) (s9, h18) (s10, s11) (s10, s12) 
+(s10, s13) (s11, h19) (s11, h20) (s11, h21) (s12, h22) (s12, h23) (s12, h24) (s13, h25) 
+(s13, h26) (s13, h27)
+*** Configuring hosts
+h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17 h18 h19 h20 h21 h22 h23 h24 h25 h26 h27
+*** Starting controller
+c0
+*** Starting 13 switches
+s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13 ...
+*** Starting CLI:
+mininet>
+\end{minted} 
+
+Now the Mininet tree toplogy has no loops, but we can add one on the sly:
 
 \begin{minted}{console}
 mininet> py net.addLink(s2, s6) 
@@ -214,10 +293,133 @@ mininet> py net.addLink(s2, s6)
 mininet> link s2 s6 up
 \end{minted}
 
+Next we write a GraphViz file that mirrors this topology, including the extra edge.  
+So here is our DOT file, from \codefilename{multiswitch_topologies/multiswitch_topo.dot}:
+
+\inputminted{python}{code/multiswitch_topologies/multiswitch_topo.dot}
+
+This file is pretty straightforward to read:
+
+\begin{itemize}
+\item The switches are listed by themselves first.  We'll keep it simple and name each one after the DPID that
+Mininet will naturally assign to it: e.g. s13 will have DPID 13.
+\item The edges are listed next, each edge being a pair of switches separated by two dashes.
+\item Each edge has two attributes: \python{src_port} is the port used on the first switch and \python{dport}
+is the port on the second switch.  
+\end{itemize}
+
+And you can turn this into a PDF-formatted graph with the command:
+
 \begin{minted}{console}
 dot -Tpdf multiswitch_topo.dot -o multiswitch_topo.pdf
 \end{minted}
 
-\section{Dynamic Toplogy Using Frenetic}
+Which looks like this:
 
+\includegraphics[width=\linewidth]{multiswitch_topo.pdf}
 
+For the code, we'll start with the NIB.  We'll still keep the distinction between core and edge switches:
+the edge switches being where hosts are connected, and core switches being those on the internal
+portion fo the network.  Only this time we'll leave these sets blank and fill the in from the topology.
+
+The following code is in  \codefilename{multiswitch_topologies/network_information_base_from_file.py}:
+
+\inputminted[firstline=15,lastline=16]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
+Next we build a data structure for holding the direct connections between hosts and switches, or
+between switches and switches.  This is a dictionary whose keys are MAC addresses for hosts and DPID's for
+switches (there is no overlap between the two).  The value for each key is itself a dictionary of destinations
+reachable from that source (the keys are, again, MAC addresses and DPID's), and the port they go out on.
+Each host is assumed to have one switch connection on port 0, although this is really a placeholder because a host is not
+a switch and therefore has no rules of its own: it can only send packets to its connected switch.  
+
+\inputminted[firstline=18,lastline=29]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
+Note that this data is separate from the spanning tree, so just because we have a direct connection from one
+host/switch to another doesn't mean we'll actually use it!
+
+The \python{init} function is more involved, reading the topology from our DOT file and building the 
+intermediate data structures.
+
+\inputminted[firstline=30,lastline=64]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
+The last few lines calculate the minimal spanning tree for the topology (minimal meaning using the least cost, and
+in our case all edges have cost 1).  We print this out for reference:
+
+\begin{minted}{console}
+vagrant@frenetic:~/manual/programmers_guide/code/multiswitch_topologies$ python multiswitch3.py
+2016-05-27 14:49:11,162 [INFO] ---> Reading Topology from multiswitch_topo.dot
+2016-05-27 14:49:11,163 [INFO] ---> Remembering internal ports
+2016-05-27 14:49:11,164 [INFO] ---> Calculating spanning tree
+11 10 {'dport': u'4', 'src_port': u'1'}
+10 1 {'dport': u'4', 'src_port': u'3'}
+10 13 {'dport': u'4', 'src_port': u'3'}
+10 12 {'dport': u'4', 'src_port': u'2'}
+1 2 {'dport': u'4', 'src_port': u'1'}
+1 6 {'dport': u'4', 'src_port': u'2'}
+3 2 {'dport': u'4', 'src_port': u'1'}
+2 5 {'dport': u'4', 'src_port': u'3'}
+2 4 {'dport': u'4', 'src_port': u'2'}
+7 6 {'dport': u'4', 'src_port': u'1'}
+6 8 {'dport': u'4', 'src_port': u'2'}
+6 9 {'dport': u'4', 'src_port': u'3'}
+Starting the tornado event loop (does not return).
+\end{minted}
+
+Note that the edges from s1-s2 and s1-s6 are present, but the edge s2-s6 is not listed.  It has been 
+dropped calcuating the minimal spanning tree.  This final topology graph now has no loops.
+
+This basic graph won't change.  When we connect hosts to the edge switches, it doesn't change the basic
+spanning tree because hosts only add one edge to the graph.  That edge must be part of the spanning tree
+in order to reach the new host, but it cannot form a loop because the rest of the graph has no loops
+and the new host was previously unconnected.  
+
+Knowing all this, we can redo the MAC learning function:
+
+\inputminted[firstline=88,lastline=116]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
+The main addition is the \python{next_hop} dictionary to the MAC.   This dictionary basically tells you how to
+go from any switch to this MAC.  Knowing this, you can easily trace a path from any source host through as set
+of switches, and finally to this destination MAC.  The path is guaranteed not to have any loops no matter
+which switch you start from.  
+
+Finally a set of utility functions gathers important information for calculating the switch 
+forwarding rules:
+
+\inputminted[firstline=74,lastline=84]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
+Our new learning switch program won't change much.  It'll delegate most of the complex stuff to the 
+NIB, which has precalculated all the routes for us.  
+
+The following code is in \codefilename{multiswitch_topologies/multiswitch3.py}:
+
+\inputminted[firstline=62,lastline=71]{python}{code/multiswitch_topologies/multiswitch2.py}
+
+In this example, the core switch rule calculation has been delegated to the \python{next_hop} calculations in
+the NIB.  
+
+The flooding policy for edge switches doesn't change because each edge switch has only hosts (which must
+receive the flooded packets) and one uplink port (which also must receive the flooded packet), modulo the
+ingress port as always.  Core switch flooding, however, must respect the spanning tree so as not to
+introduce loops:
+
+\begin{quotation}
+\emph{NOTE:  
+I haven't finished that part yet.
+The code in this section doesn't work because of Frenetic Issue 494.   }
+\end{quotation}
+
+\section{Dynamic Topology}
+
+The last step in our journey is to dynamically calculate the topology.  Our job is actually half-done already --
+we add and drop hosts dynamically as they appear or disappear.  Because each learned MAC has a next hop table,
+when the MAC disappears from the learned host list, the rules disappear as well.  
+
+\begin{quotation}
+\emph{NOTE:  This seciton is dependent on the Frenetic GUI server, which is still in Alpha.  It relies on the
+REST call to /topology, which returns a JSON list of switches and edges.  The problem is it's a non-trivial 
+exercise to make this work alongside other network programs, so it's unclear whether this is workable in this
+setup.  It may be more doable to just have multiswitch4.py send out its own probes, like the Python
+discovery app does.  
+}
+\end{quotation}

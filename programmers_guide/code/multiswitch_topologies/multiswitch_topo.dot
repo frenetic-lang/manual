@@ -1,24 +1,24 @@
 strict graph multiswitch {
   /* Level 1 */
-  1 [ dpid=1 ];
+  1 ;
 
   /* Level 2 */
-  2 [ dpid=2 ];
-  6 [ dpid=6 ];
-  10 [ dpid=10 ];
+  2 ;
+  6 ;
+  10 ;
 
   /* Level 3 */
-  3 [ dpid=3 ];
-  4 [ dpid=4 ];
-  5 [ dpid=5 ];
+  3 ;
+  4 ;
+  5 ;
 
-  7 [ dpid=7 ];
-  8 [ dpid=8 ];
-  9 [ dpid=9 ];
+  7 ;
+  8 ;
+  9 ;
 
-  11 [ dpid=11 ];
-  12 [ dpid=12 ];
-  13 [ dpid=13 ];
+  11 ;
+  12 ;
+  13 ;
 
   /* Level 1 -> Level 2 */
   1 -- 2 [ src_port = 1,  dport = 4 ];
@@ -29,7 +29,7 @@ strict graph multiswitch {
   2 -- 3 [ src_port = 1,  dport = 4 ];
   2 -- 4 [ src_port = 2,  dport = 4 ];
   2 -- 5 [ src_port = 3,  dport = 4 ];
-  /* s2 -- s6 [ src_port = 5,  dport = 5 ];  Extra - forms loop */
+  2 -- 6 [ src_port = 5,  dport = 5 ];  /* Extra - forms loop */
 
   6 -- 7 [ src_port = 1,  dport = 4 ];
   6 -- 8 [ src_port = 2,  dport = 4 ];

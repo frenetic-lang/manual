@@ -398,6 +398,7 @@ letter, and do not require parantheses.
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{SendToController("http")} \\ \\
+\textsc{Raw}    & \texttt{port := pipe("http")}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "location", } \\
  & \texttt{ "value": \{ "type": "pipe", "name": "http" \} \} } 
 \end{tabularx}
@@ -410,6 +411,20 @@ The pipe name is an arbitrary string.  You can use it to distinguish \ldots
 \emph{Note: I'm not sure how you distinguish packets using pipes since they're not part of the 
 packet and you can't do matches on them.}
 \end{quotation}
+
+\subsubsection{SendToQuery}
+
+\bigskip
+\begin{tabularx}{\linewidth}{lX}
+\textsc{Python}   & \texttt{SendToQuery("internet")} \\ \\
+\textsc{Raw}    & \texttt{port := query("internet")}     \\ \\
+\textsc{REST} & \texttt{ \{ "type": "mod", "header": "location", } \\
+ & \texttt{ "value": \{ "type": "query", "name": "internet" \} \} } 
+\end{tabularx}
+
+\python{SendToQuery} counts packets and bytes that meet certain match criteria.  This is described in
+Section \ref{statistics:queries}.   
+
 
 \subsubsection{SetEthDst}
 

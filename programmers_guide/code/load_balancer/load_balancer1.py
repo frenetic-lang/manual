@@ -1,5 +1,5 @@
 import sys,logging,datetime
-sys.path.append("../routing")
+#sys.path.append("../routing")
 from load_balancer_nib import *
 from switch_handler import *
 from load_balancer_handler import *
@@ -24,10 +24,9 @@ class LoadBalancerApp(frenetic.App):
     self.load_balancer_handler = LoadBalancerHandler(self.nib, logging, self)
 
   def policy(self):
-    return Union([
-      self.switch_handler.policy(),
-      self.load_balancer_handler.policy(),
-    ])
+    policy_list = self.switch_handler.policy_list()
+    policy_list.append(self.load_balancer_handler.policy())
+    return Union(policy_list)
 
   def update_and_clear_dirty(self):
     self.update(self.policy())

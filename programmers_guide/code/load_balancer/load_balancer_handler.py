@@ -1,5 +1,5 @@
 import sys
-sys.path.append("../routing")
+#sys.path.append("../routing")
 from router_handler import *
 
 class LoadBalancerHandler(RouterHandler):
@@ -7,6 +7,7 @@ class LoadBalancerHandler(RouterHandler):
   def connected(self):
     # We send out ARP requests to all back-end IP's so we minimize waiting
     # for first-time requests
+    pass
     self.logger.info("Sending out ARP Requests to all Backend IPs")
     frontend_ip = self.nib.lb_frontend_ip()
     sn = self.nib.subnet_for(frontend_ip)
@@ -30,6 +31,14 @@ class LoadBalancerHandler(RouterHandler):
 
   def packet_in(self, dpid, port_id, payload):
     nib = self.nib
+
+    # If we haven't learned the ports yet, just exit prematurely
+    if nib.switch_not_yet_connected():
+      return
+
+    # If this packet was not received at the router, just ignore
+    if dpid != self.nib.router_dpid:
+      return
 
     # Parse the interesting stuff from the packet
     ethernet_packet = self.main_app.packet(payload, "ethernet")
@@ -69,6 +78,7 @@ class LoadBalancerHandler(RouterHandler):
         dst_mac = nib.mac_for_ip(dst_ip)
         if dst_mac == None:
           self.logger.error("Uh oh.  Don't know Mac for "+dst_ip)
+
         else:
           sn = nib.subnet_for(dst_ip)
           self.logger.info("Rewriting reply from "+src_ip+" to "+frontend_ip)

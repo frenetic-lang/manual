@@ -15,58 +15,41 @@ class NetworkInformationBaseFromFile(object):
   core_switches = set()
   edge_switches = set()
 
-  # The internal ports are a dictionary of dpids to ports.  The ports
-  # list here will end up being a subset of ports[dpid]
-  # { 18237640987: [1,2], ...}
-  switch_internal_ports = {}
-
-  # Like switches but returns a dictionary of destination switches to ports.  
-  # Though this data is part of the agraph, the conversion of agraphs to networkx 
-  # graphs turns the source and destination of the edges around (which is OK, 
-  # because the graph is undirected)
+  # For each switch, returns a dictionary of destination switches to ports.  
+  # So in the following, a packet in 18237640987 can get to switch 9287354
+  # by going out port 7.  This effectively turns the undirected edges of the
+  # topo graph into bidirectional edges.  
+  #  { 18237640987: { 9287354: 7, 09843509: 5, ... }}
   port_mappings = {}
 
-  # TODO
-  dpid_to_switch_dict = {}
-  switch_to_dpid_dict = {}
+  def add_port_mapping(self, from_node, to_node, on_port):
+    if from_node not in self.port_mappings:
+      self.port_mappings[from_node] = {}
+    self.port_mappings[from_node][to_node] = on_port
 
   def __init__(self, logger, topology_file="multiswitch_topo.dot"):
     self.logger = logger
 
     self.logger.info("---> Reading Topology from "+topology_file)
     self.agraph = pgv.AGraph(topology_file)
-    switch_to_dpid_dict = {}
-    for sw in self.agraph.nodes():
-      dpid = int(sw.attr['dpid'])
-      self.switch_to_dpid_dict[ str(sw) ] = dpid
-      self.dpid_to_switch_dict[ dpid ] = str(sw)
 
     # It's faster to denormalize this now
     self.logger.info("---> Remembering internal ports")
-    self.switch_internal_ports = { self.switch_to_dpid_dict[sw]: set([]) for sw in self.switch_to_dpid_dict }
+    switches = [ int(sw) for sw in self.agraph.nodes()]
     for e in self.agraph.edges():
       # Parse the source and destination switches
       source_dpid = int(e[0])
-      #source_dpid = self.switch_to_dpid_dict[source_sw]
       dest_dpid = int(e[1])
-      #dest_dpid = self.switch_to_dpid_dict[dest_sw]
-
       source_port = int(e.attr["src_port"])
       dest_port = int(e.attr["dport"])
 
       # Add a mapping for the forward directions source->dest
-      self.switch_internal_ports[ source_dpid ].add( source_port )
-      if source_dpid not in self.port_mappings:
-        self.port_mappings[source_dpid] = {}
-      self.port_mappings[source_dpid][dest_dpid] = source_port
+      self.add_port_mapping(source_dpid, dest_dpid, source_port)
 
       # Add a mapping for the reverse direction dest->source
-      self.switch_internal_ports[ dest_dpid ].add( dest_port )
-      if dest_dpid not in self.port_mappings:
-        self.port_mappings[dest_dpid] = {}
-      self.port_mappings[dest_dpid][source_dpid] = dest_port
+      self.add_port_mapping(dest_dpid, source_dpid, dest_port)
 
-    # Calculate the core/edge distinction.  Edge switches have only one 
+    # Calculate the core/edge attribute.  Edge switches have only one 
     # connection to another switch
     for sw in self.port_mappings:
       if len(self.port_mappings[sw]) == 1:
@@ -89,7 +72,7 @@ class NetworkInformationBaseFromFile(object):
     return self.port_for_dpid[dpid]
 
   def next_hop_port(self, mac, core_dpid):
-    return self.port_mappings[mac][core_dpid]
+    return self.hosts[mac][2][core_dpid]
 
   def uplink_port_for_dpid(self, dpid):
     # Edge switches have only one entry in port_mappings[dpid], so we get it here
@@ -99,6 +82,9 @@ class NetworkInformationBaseFromFile(object):
   def is_internal_port(self, dpid, port_id):
     return dpid in self.core_switches or port_id == self.uplink_port_for_dpid(dpid)
 
+  def switches(self):
+    return self.ports.keys()
+
   def learn(self, mac, dpid, port_id):
     # Do not learn a mac twice
     if mac in self.hosts:
@@ -106,7 +92,6 @@ class NetworkInformationBaseFromFile(object):
 
     # Compute next hop table: from each switch, which port do you need to go next to get to destination?
     self.nx_topo.add_node(mac)
-    # To add the edge, you need to convert the dpid (e.g. 1) to a switch name (e.g s1)
     dpid_str = str(dpid)
     self.nx_topo.add_edge(dpid_str, mac)
     # Note we don't need a mapping from mac to switch because we never see packets going INTO a host
@@ -115,18 +100,20 @@ class NetworkInformationBaseFromFile(object):
     # Return shortest paths from each source in the graph to mac in the form 
     # [ src: to1, from2: to2 ..., to[n]: dest ]
     spaths = nx.shortest_path(self.nx_topo, None, mac, None)
-    self.logger.info(str(spaths))
     next_hop_table = { }
-    for dpid in self.ports.keys():
-      # Convert dpid to a switch name, which is used in the graph
-      sw = self.dpid_to_switch_dict[dpid] 
-      # If there are no paths from sw, just skip it
-      if sw in spaths:
-        next_sw = spaths[sw][1]  # element 0 is the start, element 1 is the next hop
-        # Convert this back to a dpid
-        next_dpid = int(next_sw)
-        # The next hop switch along the shortest path from sw to mac.  Possble that dest = mac
-        next_hop_table[dpid] = self.port_mappings[dpid][next_dpid]
+    for from_dpid in self.switches():
+      # If we're on the switch the Mac is connected to, just add the next_hop
+      if from_dpid == dpid:
+        next_hop_table[from_dpid] = port_id
+      else:
+        sw = str(from_dpid)
+        # If there are no paths from sw, just skip it
+        if sw in spaths:
+          next_sw = spaths[sw][1]  # element 0 is the start, element 1 is the next hop
+          # Convert this back to a dpid
+          next_dpid = int(next_sw)
+          # The next hop switch along the shortest path from sw to mac.
+          next_hop_table[from_dpid] = self.port_mappings[from_dpid][next_dpid]
 
     cd = (dpid, port_id, next_hop_table)
     self.hosts[mac] = cd

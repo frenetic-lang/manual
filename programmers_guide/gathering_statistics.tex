@@ -17,8 +17,6 @@ policies or \netkat{pkt_out} actions, and aggregate them.
 \emph{SetQuery is not in the current Python bindings, but will be.  See Issue \#491 on Github}
 \end{quotation}
 
-\subsection{Modularizing Your Application}
-
 We could add the statistics-gathering commands to an existing network application, like our learning
 switch.  But Frenetic allows you more flexibility.   
 
@@ -97,6 +95,7 @@ What per-port statistics are available?  The following table gives you a list:
 These are the per-port statistics defined in OpenFlow 1.0.  
 
 \section{Queries}
+\label{statistics:queries}
 
 You can also gather statistics based on NetKAT rules.  This is called a \emph{query} and you can think 
 of a query as just another location to send packets, like \netkat{SetPort} or \netkat{SetPipe}.
