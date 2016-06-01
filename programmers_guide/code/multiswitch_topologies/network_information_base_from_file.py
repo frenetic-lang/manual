@@ -15,12 +15,22 @@ class NetworkInformationBaseFromFile(object):
   core_switches = set()
   edge_switches = set()
 
+  # Uplink port from each edge switch to the nearest core switch
+  uplink_port = {}
+
   # For each switch, returns a dictionary of destination switches to ports.  
   # So in the following, a packet in 18237640987 can get to switch 9287354
   # by going out port 7.  This effectively turns the undirected edges of the
-  # topo graph into bidirectional edges.  
+  # topo graph into bidirectional edges.  Later we'll add learned MAC addresses
+  # to this dictionary as well.
   #  { 18237640987: { 9287354: 7, 09843509: 5, ... }}
   port_mappings = {}
+
+  # On core switches, we pretend that edges not living on the spanning 
+  # tree are disabled - we don't send or flood traffic to it, and we drop
+  # all incoming traffic from it.  So this structure keeps track of all
+  # ports that are enabled - each enabled_ports[sw] is a subset of ports[sw]
+  enabled_ports = {}
 
   def add_port_mapping(self, from_node, to_node, on_port):
     if from_node not in self.port_mappings:
@@ -54,6 +64,9 @@ class NetworkInformationBaseFromFile(object):
     for sw in self.port_mappings:
       if len(self.port_mappings[sw]) == 1:
         self.edge_switches.add(sw)
+        # Edge switches have only one entry in port_mappings[dpid], so we get it here
+        connected_sw = self.port_mappings[sw].keys()[0]
+        self.uplink_port[sw] = self.port_mappings[sw][connected_sw]
       else:
         self.core_switches.add(sw)
 
@@ -61,6 +74,23 @@ class NetworkInformationBaseFromFile(object):
     nxgraph = nx.from_agraph(self.agraph)
     self.nx_topo = nx.minimum_spanning_tree(nxgraph)    
     nx.write_edgelist(self.nx_topo, sys.stdout)
+
+    self.logger.info("---> Enabling only those ports on the spanning tree")
+    for (from_dpid, to_dpid) in self.nx_topo.edges():
+      # We look up the port mapping from the port-mapping dictionary instead of 
+      # from the graph attributes because NetworkX flips the src and dest node
+      # arbitrarily in an undirected graph
+      from_dpid_int = int(from_dpid)
+      to_dpid_int = int(to_dpid)
+      from_port = self.port_mappings[from_dpid_int][to_dpid_int]
+      if from_dpid_int not in self.enabled_ports:
+        self.enabled_ports[from_dpid_int] = []
+      self.enabled_ports[from_dpid_int].append(from_port)
+
+      to_port = self.port_mappings[to_dpid_int][from_dpid_int]
+      if to_dpid_int not in self.enabled_ports:
+        self.enabled_ports[to_dpid_int] = []
+      self.enabled_ports[to_dpid_int].append(to_port)
 
   def core_switch_dpids(self):
     return list(self.core_switches)
@@ -75,12 +105,10 @@ class NetworkInformationBaseFromFile(object):
     return self.hosts[mac][2][core_dpid]
 
   def uplink_port_for_dpid(self, dpid):
-    # Edge switches have only one entry in port_mappings[dpid], so we get it here
-    connected_sw = self.port_mappings[dpid].keys()[0]
-    return self.port_mappings[dpid][connected_sw]
+    return self.uplink_port[dpid]
 
   def is_internal_port(self, dpid, port_id):
-    return dpid in self.core_switches or port_id == self.uplink_port_for_dpid(dpid)
+    return (dpid in self.core_switches) or (port_id == self.uplink_port_for_dpid(dpid))
 
   def switches(self):
     return self.ports.keys()
@@ -163,8 +191,9 @@ class NetworkInformationBaseFromFile(object):
     if port_id in self.ports:
       self.ports.remove(port_id)
 
-  def all_ports_except(self, dpid, in_port_id):
-    return [p for p in self.ports[dpid] if p != in_port_id]
+  def all_enabled_ports_except(self, dpid, in_port_id):
+    ports_to_flood = self.enabled_ports[dpid] if dpid in self.core_switches else self.ports[dpid]
+    return [p for p in ports_to_flood if p != in_port_id]
 
   def switch_not_yet_connected(self):
     return self.ports == {}

@@ -291,6 +291,7 @@ Now the Mininet tree toplogy has no loops, but we can add one on the sly:
 mininet> py net.addLink(s2, s6) 
 <mininet.link.Link object at 0x7fd432ace810>
 mininet> link s2 s6 up
+mininet> py s2.attach('s2-eth5')
 \end{minted}
 
 Next we write a GraphViz file that mirrors this topology, including the extra edge.  
@@ -333,18 +334,34 @@ reachable from that source (the keys are, again, MAC addresses and DPID's), and 
 Each host is assumed to have one switch connection on port 0, although this is really a placeholder because a host is not
 a switch and therefore has no rules of its own: it can only send packets to its connected switch.  
 
-\inputminted[firstline=18,lastline=29]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+\inputminted[firstline=21,lastline=27]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
 
 Note that this data is separate from the spanning tree, so just because we have a direct connection from one
 host/switch to another doesn't mean we'll actually use it!
 
+The \python{ports} data structure is the same one we've used in previous network applications, but
+we need a parallel structure to track \emph{enabled} ports.  When we calculate the spanning tree, it's
+possible that some core switch ports need to be virtually disabled because they form 
+redundant paths.  For example, in our network, the edge s2-s6 is not on the spanning tree, and so the ports
+for that edge (port 5 on s2 and port 5 on s6) will need to be virtually disabled - no floodable traffic
+will go that port, and all packets arriving on that port (there shouldn't be any, but you never know) will
+be dropped.
+
+\inputminted[firstline=29,lastline=33]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
+The uplink port on each of the edge switches needs to be calculated and tracked, since MAC learning cannot
+occur on that port.
+
+\inputminted[firstline=18,lastline=19]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
 The \python{init} function is more involved, reading the topology from our DOT file and building the 
 intermediate data structures.
 
-\inputminted[firstline=30,lastline=64]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+\inputminted[firstline=40,lastline=94]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
 
 The last few lines calculate the minimal spanning tree for the topology (minimal meaning using the least cost, and
-in our case all edges have cost 1).  We print this out for reference:
+in our case all edges have cost 1).  Then we calculate all the enabled ports whose edges live on this
+spanning tree.  We print the spanning tree to the log for reference:
 
 \begin{minted}{console}
 vagrant@frenetic:~/manual/programmers_guide/code/multiswitch_topologies$ python multiswitch3.py
@@ -369,31 +386,37 @@ Starting the tornado event loop (does not return).
 Note that the edges from s1-s2 and s1-s6 are present, but the edge s2-s6 is not listed.  It has been 
 dropped calcuating the minimal spanning tree.  This final topology graph now has no loops.
 
-This basic graph won't change.  When we connect hosts to the edge switches, it doesn't change the basic
+This basic graph won't change.  When we connect hosts to the edge switches, it doesn't change the 
 spanning tree because hosts only add one edge to the graph.  That edge must be part of the spanning tree
 in order to reach the new host, but it cannot form a loop because the rest of the graph has no loops
 and the new host was previously unconnected.  
 
 Knowing all this, we can redo the MAC learning function:
 
-\inputminted[firstline=88,lastline=116]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+\inputminted[firstline=116,lastline=148]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
 
 The main addition is the \python{next_hop} dictionary to the MAC.   This dictionary basically tells you how to
 go from any switch to this MAC.  Knowing this, you can easily trace a path from any source host through as set
 of switches, and finally to this destination MAC.  The path is guaranteed not to have any loops no matter
 which switch you start from.  
 
-Finally a set of utility functions gathers important information for calculating the switch 
+A set of utility functions gathers important information for calculating the switch 
 forwarding rules:
 
-\inputminted[firstline=74,lastline=84]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+\inputminted[firstline=95,lastline=115]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
+
+And a new function returns the enabled ports for a particular switch, so rational flooding can occur.
+This is important for the core switches.  The edge switches merely flood to all ports since the host ports
+and the uplink ports are always part of the spanning tree.   
+
+\inputminted[firstline=194,lastline=196]{python}{code/multiswitch_topologies/network_information_base_from_file.py}
 
 Our new learning switch program won't change much.  It'll delegate most of the complex stuff to the 
 NIB, which has precalculated all the routes for us.  
 
 The following code is in \codefilename{multiswitch_topologies/multiswitch3.py}:
 
-\inputminted[firstline=62,lastline=71]{python}{code/multiswitch_topologies/multiswitch2.py}
+\inputminted[firstline=62,lastline=71]{python}{code/multiswitch_topologies/multiswitch3.py}
 
 In this example, the core switch rule calculation has been delegated to the \python{next_hop} calculations in
 the NIB.  
@@ -403,11 +426,14 @@ receive the flooded packets) and one uplink port (which also must receive the fl
 ingress port as always.  Core switch flooding, however, must respect the spanning tree so as not to
 introduce loops:
 
-\begin{quotation}
-\emph{NOTE:  
-I haven't finished that part yet.
-The code in this section doesn't work because of Frenetic Issue 494.   }
-\end{quotation}
+\inputminted[firstline=22,lastline=26]{python}{code/multiswitch_topologies/multiswitch3.py}
+
+And with that, our network keeps itself loop-free and functional.  If the topology changes, we simply
+change the GraphViz file and restart that network application, which then recalculates the spanning
+tree and relearns the host MAC addresses.  One can build a very large L2 network with lots of 
+switches connected arbitrarily in this manner.  And it's fairly easy to extend this program for fault
+tolerance -- if a port on a core switch goes down, we can update the graph, recalculate the spanning
+tree, enable previously-disabled ports and keep the network running smoothly.  
 
 \section{Dynamic Topology}
 

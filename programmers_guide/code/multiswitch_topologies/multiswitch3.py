@@ -21,7 +21,7 @@ class MultiswitchApp3(frenetic.App):
 
   def policy_flood_one_port(self, dpid, port_id):
     outputs = Union(
-      SetPort(p) for p in self.nib.all_ports_except(dpid, port_id)
+      SetPort(p) for p in self.nib.all_enabled_ports_except(dpid, port_id)
     )
     return Filter(PortEq(port_id)) >> outputs
 
@@ -114,7 +114,7 @@ class MultiswitchApp3(frenetic.App):
     if  dst_port != None:
       actions = [ Output(Physical(dst_port)) ]
     else:
-      actions = [ Output(Physical(p)) for p in nib.all_ports_except(dpid, port_id) ]
+      actions = [ Output(Physical(p)) for p in nib.all_enabled_ports_except(dpid, port_id) ]
     self.pkt_out(dpid, payload, actions )
 
   def port_down(self, dpid, port_id):
