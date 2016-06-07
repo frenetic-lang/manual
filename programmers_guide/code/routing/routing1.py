@@ -1,9 +1,10 @@
 import sys,logging,datetime
 from network_information_base import *
+from frenetic import *
+from frenetic.packet import *
 from switch_handler import *
 from router_handler import *
 from tornado.ioloop import IOLoop
-
 
 class RoutingApp(frenetic.App):
 
@@ -34,8 +35,9 @@ class RoutingApp(frenetic.App):
     self.current_switches(callback=handle_current_switches)
 
   def packet_in(self, dpid, port, payload):
-    self.switch_handler.packet_in(dpid, port, payload)
-    self.router_handler.packet_in(dpid, port, payload)
+    pkt = Packet.from_payload(dpid, port, payload)
+    self.switch_handler.packet_in(pkt, payload)
+    self.router_handler.packet_in(pkt, payload)
 
     if self.nib.is_dirty():
       logging.info("Installing new policy")

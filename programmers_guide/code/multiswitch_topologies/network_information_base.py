@@ -9,8 +9,8 @@ class NetworkInformationBase(object):
   ports = {}
 
   # For this incarnation, we assume the switch with dpid = 1 is the core switch
-  core_switches = set(1)
-  edge_switches = set(2,3,4,5)
+  core_switches = set([1])
+  edge_switches = set([2,3,4,5])
 
   # And hardcode the router ports
   port_for_dpid = {2:1, 3:2, 4:3, 5:4}
@@ -30,11 +30,11 @@ class NetworkInformationBase(object):
   def core_port_for_edge_dpid(self, dpid):
     return self.port_for_dpid[dpid]
 
-  def uplink_port_for_dpid(self, dpid)
+  def uplink_port_for_dpid(self, dpid):
     return self.edge_uplink_port
 
   def is_internal_port(self, dpid, port_id):
-    return dpid == self.core_switch_dpid or port_id == self.edge_uplink_port
+    return dpid == self.core_switch_dpids()[0] or port_id == self.edge_uplink_port
 
   def learn(self, mac, dpid, port_id):
     # Do not learn a mac twice

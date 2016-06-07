@@ -118,7 +118,7 @@ value in the header, not the one we just changed it to.  But most of the
 time, you can ignore this subtlety because filters precede modifications.
 
 Modifications to different headers can generally be specified in any order.  If two modifications to the same header 
-value occur one after the other, the last one wins. 
+value occur one after the other, the last one wins.  
 
 You combine these building blocks with \texttt{Seq} and \texttt{Union}.
 Here is a \texttt{Seq} of two policies, a filter and a modification.   
@@ -145,10 +145,9 @@ In general, putting all the filters before the actions in a sequence chain is th
 The following principle is a good guideline:  
 
 \begin{principle}
-Use \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
+Use \texttt{>>} between filters and all actions.
 \end{principle}
 
-\texttt{SetPort} is an exception to the rule that we'll see in a minute.  
 Here is a Union of policies.
 
 \includegraphics{netkat_policy_combinators_union}
@@ -160,7 +159,7 @@ The middle filter only forwards a copy of the second packet  matching \netkat{Po
 The bottom filter doesn't forward any packets at all.  
 
 \begin{principle}
-Use \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
+Use \texttt{|} between rules that DO NOT overlap.
 Use \texttt{IfThenElse} to combine rules that DO overlap. 
 \end{principle}
 
@@ -174,15 +173,7 @@ with a \texttt{Union}.  Your switch can handle it.
 
 \texttt{SetPort} is a little different.  Other modifications like \texttt{SetTcpDstPort} act on a single packet at a time.
 A single \texttt{SetPort} is like this - we merely want to change the egress port of the packet itself.  But if 
-you want to send it out multiple ports at once, as in flooding, you need to use multiple \texttt{SetPort} actions.
-
-\includegraphics{netkat_policy_combinators_set_port}
-
-If you string these \texttt{SetPort}s together in a \texttt{Seq}, the single packet will be assigned each output port in turn, and
-the last assigned egress port will ``win''.  
-This is probably not what you want.  
-On the other hand, stringing these together with \texttt{Union} makes more sense.  You actually WANT to make
-extra copies of the packet, and send each copy out a different port.  
+you want to send it out multiple ports at once, as in flooding, you can send a list of ports to \texttt{SetPort}.
 
 Now let's look at \texttt{Union} and \texttt{IfThenElse}.  
 As we have seen in Chapter 2, Union is parallel composition:
@@ -347,10 +338,19 @@ Great!  Once we have the list of ports, we can construct policies.  If a packet 
 The NetKAT policy, written out manually, will look like this:
 
 \begin{minted}{python}
-Filter(PortEq(1)) >> (SetPort(2) | SetPort(3) | SetPort(4)) |
-Filter(PortEq(2)) >> (SetPort(1) | SetPort(3) | SetPort(4)) |
-Filter(PortEq(3)) >> (SetPort(1) | SetPort(2) | SetPort(4)) |
-Filter(PortEq(4)) >> (SetPort(1) | SetPort(2) | SetPort(3))
+Filter(PortEq(1)) >> SetPort(2,3,4) |
+Filter(PortEq(2)) >> SetPort(1,3,4) |
+Filter(PortEq(3)) >> SetPort(1,2,4) |
+Filter(PortEq(4)) >> SetPort(1,2,3)
+\end{minted}
+
+Or equivalently with lists:
+
+\begin{minted}{python}
+Filter(PortEq(1)) >> SetPort( [2,3,4] ) |
+Filter(PortEq(2)) >> SetPort( [1,3,4] ) |
+Filter(PortEq(3)) >> SetPort( [1,2,4] ) |
+Filter(PortEq(4)) >> SetPort( [1,2,3] )
 \end{minted}
 
 A combination of Frenetic and Python lists makes this easy to construct.  
@@ -358,42 +358,27 @@ Suppose you have the list named \python{sw} with value
 \python{[1, 2, 3, 4]} from the callback.   The following Python list comprehension:
 
 \begin{minted}{python}
-SetPort(p) for p in sw
+SetPort( [p for p in sw] )
 \end{minted}
 
 returns the list:
 
 \begin{minted}{python}
-[ SetPort(1); SetPort(2); SetPort(3); SetPort(4) ]
+SetPort( [1,2,3,4] )
 \end{minted}
 
-Now suppose we're looking only at port 1.  We want all of the \texttt{SetPort's} here 
-except \texttt{SetPort(1)}.  A little tweak to the list comprehension:
+Now suppose we're looking only at port 1.  We want all of the ports here 
+except 1.  A little tweak to the list comprehension:
 
 \begin{minted}{python}
-SetPort(p) for p in sw if p != in_port
+SetPort( [p for p in sw if p != in_port] )
 \end{minted}
 
 Removes the input port from the list, leaving:
 
 \begin{minted}{python}
-[ SetPort(2); SetPort(3); SetPort(4) ]
+SetPort( [2,3,4] )
 \end{minted}
-
-And now you can pass this to the NetKAT \texttt{Union} operator:
-
-\begin{minted}{python}
-Union( SetPort(p) for p in sw if p != in_port )
-\end{minted}
-
-\ldots which creates a parallel composition out of the entire list:
-
-\begin{minted}{python}
-SetPort(2) | SetPort(3) | SetPort(4)
-\end{minted}
-
-You can pass a Python list of policies to either \texttt{Union} or \texttt{Seq}, making it easy to build 
-very large policies from component parts very quickly.  
 
 So here is our repeater that installs an initial configuration.
 The following code is in \codefilename{netkat_principles/repeater4.py}:
@@ -417,7 +402,7 @@ id >> SendToController("repeater_app")
 But obviously, this overlaps with the rules for known ports in our repeater.  So we use an \texttt{IfThenElse} to 
 resolve the overlap:
 
-\inputminted[firstline=16,lastline=33]{python}{code/netkat_principles/repeater5.py}
+\inputminted[firstline=14,lastline=25]{python}{code/netkat_principles/repeater5.py}
 
 We take this opportunity to save the port list in an instance variable \texttt{self.all\_ports}.  This instance variable
 is the beginning of a Network Information Base, or NIB -- it encapsulates the known state of the network
@@ -428,20 +413,20 @@ Now how we do learn about new ports?  A packet arriving at \texttt{pkt\_in} will
 So suppose we're seeing a packet on port 40.  If you think about, the entire NetKAT program will change from:
 
 \begin{minted}{python}
-Filter(PortEq(1)) >> (SetPort(2) | SetPort(3) | SetPort(4)) |
-Filter(PortEq(2)) >> (SetPort(1) | SetPort(3) | SetPort(4)) |
-Filter(PortEq(3)) >> (SetPort(1) | SetPort(2) | SetPort(4)) |
-Filter(PortEq(4)) >> (SetPort(1) | SetPort(2) | SetPort(3))
+Filter(PortEq(1)) >> SetPort(2,3,4) |
+Filter(PortEq(2)) >> SetPort(1,3,4) |
+Filter(PortEq(3)) >> SetPort(1,2,4) | 
+Filter(PortEq(4)) >> SetPort(1,2,3)
 \end{minted}
 
 to:
 
 \begin{minted}{python}
-Filter(PortEq(1)) >> (SetPort(2) | SetPort(3) | SetPort(4) | SetPort(40)) |
-Filter(PortEq(2)) >> (SetPort(1) | SetPort(3) | SetPort(4) | SetPort(40)) |
-Filter(PortEq(3)) >> (SetPort(1) | SetPort(2) | SetPort(4) | SetPort(40)) |
-Filter(PortEq(4)) >> (SetPort(1) | SetPort(2) | SetPort(3) | SetPort(40)) |
-Filter(PortEq(40)) >> (SetPort(1) | SetPort(2) | SetPort(3) | SetPort(4))
+Filter(PortEq(1)) >> SetPort(2,3,4,40) |
+Filter(PortEq(2)) >> SetPort(1,3,4,40) |
+Filter(PortEq(3)) >> SetPort(1,2,4,40) | 
+Filter(PortEq(4)) >> SetPort(1,2,3,40) |
+Filter(PortEq(40)) >> SetPort(1,2,3,4)
 \end{minted}
 
 Fortunately, we have all the logic we need in \texttt{self.all\_ports\_policy} already.  We just need
@@ -464,7 +449,7 @@ will deal with it appropriately, right?
   def packet_in(self, dpid, port_id, payload):
     self.all_ports.add(port_id)
     self.update(self.policy())
-    self.pkt_out(dpid, payload, [ ??? ] )
+    self.pkt_out(dpid, payload, ??? )
 \end{minted}
 
 There are two problems.  First, it's unclear what the action should be on \texttt{pkt\_out}.  If we send an empty 
@@ -537,11 +522,11 @@ Instead, program NetKAT policies to make most of the decisions inside the switch
 \end{principle}
 
 \begin{principle}
-Use \texttt{>>} between filters and all actions except multiple \texttt{SetPort}s.
+Use \texttt{>>} between filters and all actions.
 \end{principle}
 
 \begin{principle}
-Use \texttt{|} between multiple SetPorts and rules that DO NOT overlap.
+Use \texttt{|} between rules that DO NOT overlap.
 Use \texttt{IfThenElse} to combine rules that DO overlap. 
 \end{principle}
 

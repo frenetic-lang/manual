@@ -112,12 +112,12 @@ which is a \emph{policy} that accepts all packets.
 
 Note in Python, \python{Id} and \python{Drop} are the only predicates that don't require parantheses.
 
-\subsubsection{IPDst}
+\subsubsection{IP4Dst}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lXX}
-\textsc{Python}   & \texttt{IPDstEq("192.168.57.100")}    & \texttt{IPDstNotEq("192.168.57.100")} \\
-    & \texttt{IPDstEq("192.168.57.0", 24)}  & \texttt{IPDstNotEq("192.168.57.0", 24)} \\ \\
+\textsc{Python}   & \texttt{IP4DstEq("192.168.57.100")}    & \texttt{IP4DstNotEq("192.168.57.100")} \\
+    & \texttt{IP4DstEq("192.168.57.0", 24)}  & \texttt{IP4DstNotEq("192.168.57.0", 24)} \\ \\
 \textsc{Raw}    & \texttt{ip4Dst = 192.168.57.100}     & \texttt{ip4Dst = 192.168.57.0/24} \\ \\
 \textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ip4dst",}} \\
    & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.100", "mask": 32 \}} \}} \\
@@ -125,13 +125,13 @@ Note in Python, \python{Id} and \python{Drop} are the only predicates that don't
    & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.0", "mask": 24 \}} \}} \\
 \end{tabularx}
 
-\python{IPDst} matches packets with a particular IP destination address, or destination network.  It only matches
+\python{IP4Dst} matches packets with a particular IP destination address, or destination network.  It only matches
 IP v4 packets, as per Openflow 1.0.  
 
-\python{IPDstEq} cannot accept a list of values as other predicates can.  
+\python{IP4DstEq} cannot accept a list of values as other predicates can.  
 Instead, you can specify a subnet -- a range
 of IP addresses using a bit mask value.  This is identical to using CIDR format, so that 
-\python{IPDstEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
+\python{IP4DstEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
 IP addresses \python{192.168.57.1} to \python{192.168.57.255}.  Leaving out the subnet mask in Python 
 or Raw NetKAT is equivalent to specifiying a mask of 32 - meaning all 32 bits of the IP address are used
 in the match.  (The 32 must be explicitly specified in REST-based NetKAT).
@@ -154,12 +154,12 @@ The IP Protocol is a number from 1-255.  A complete list of common protocols are
 https://en.wikipedia.org/wiki/List\_of\_IP\_protocol\_numbers.  In Python, you can also match against the
 constants in \python{ryu.packet.in_proto}.
 
-\subsubsection{IPSrc}
+\subsubsection{IP4Src}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lXX}
-\textsc{Python}   & \texttt{IPSrcEq("192.168.57.100")}    & \texttt{IPSrcNotEq("192.168.57.100")} \\
-    & \texttt{IPSrcEq("192.168.57.0", 24)}  & \texttt{IPSrcNotEq("192.168.57.0", 24)} \\ \\
+\textsc{Python}   & \texttt{IP4SrcEq("192.168.57.100")}    & \texttt{IP4SrcNotEq("192.168.57.100")} \\
+    & \texttt{IP4SrcEq("192.168.57.0", 24)}  & \texttt{IP4SrcNotEq("192.168.57.0", 24)} \\ \\
 \textsc{Raw}    & \texttt{ip4Src = 192.168.57.100}     & \texttt{ip4Src = 192.168.57.0/24} \\ \\
 \textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ip4src",}} \\
    & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.100", "mask": 32 \}} \}} \\
@@ -167,13 +167,13 @@ constants in \python{ryu.packet.in_proto}.
    & \multicolumn{2}{l}{\texttt{  "value": \{"addr": "192.168.57.0", "mask": 24 \}} \}} \\
 \end{tabularx}
 
-\python{IPSrc} matches packets with a particular IP source address, or source network.  It only matches
+\python{IP4Src} matches packets with a particular IP source address, or source network.  It only matches
 IP v4 packets, as per Openflow 1.0.  
 
-\python{IPSrcEq} cannot accept a list of values as other predicates can.  
+\python{IP4SrcEq} cannot accept a list of values as other predicates can.  
 Instead, you can specify a subnet -- a range
 of IP addresses using a bit mask value.  This is identical to using CIDR format, so that 
-\python{IPSrcEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
+\python{IP4SrcEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
 IP addresses \python{192.168.57.1} to \python{192.168.57.255}.  Leaving out the subnet mask in Python 
 or Raw NetKAT is equivalent to specifiying a mask of 32 - meaning all 32 bits of the IP address are used
 in the match.  (The 32 must be explicitly specified in REST-based NetKAT).
@@ -405,7 +405,11 @@ letter, and do not require parantheses.
 
 \python{SendToController} sends the packet to the controller.   
 
-The pipe name is an arbitrary string.  You can use it to distinguish \ldots
+The pipe name is an arbitrary string.  You can use it to distinguish \ldots TODO
+
+A packet may have only one destination: a port, a query bucket, or the controller.  So if you use 
+\netkat{SetPort}, \netkat{SendToController}, or \netkat{SendToQuery} in a sequence, the last one will
+win.  If you want a packet to go to more than one destination, use \netkat{Union} between them.    
 
 \begin{quotation}
 \emph{Note: I'm not sure how you distinguish packets using pipes since they're not part of the 
@@ -425,6 +429,9 @@ packet and you can't do matches on them.}
 \python{SendToQuery} counts packets and bytes that meet certain match criteria.  This is described in
 Section \ref{statistics:queries}.   
 
+A packet may have only one destination: a port, a query bucket, or the controller.  So if you use 
+\netkat{SetPort}, \netkat{SendToController}, or \netkat{SendToQuery} in a sequence, the last one will
+win.  If you want a packet to go to more than one destination, use \netkat{Union} between them.    
 
 \subsubsection{SetEthDst}
 
@@ -473,17 +480,17 @@ Note that for VLAN-tagged packets, you set the Ethernet type for the \emph{inner
 for VLAN.  To tag it with a VLAN, you simply use the policy \netkat{SetVlan}, and that assigns the
 correct Ethernet type to the outer packet.  
 
-\subsubsection{SetIPDst}
+\subsubsection{SetIP4Dst}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
-\textsc{Python}   & \texttt{SetIPDst("192.168.57.100")} \\ \\
+\textsc{Python}   & \texttt{SetIP4Dst("192.168.57.100")} \\ \\
 \textsc{Raw}    & \texttt{ip4Dst := 192.168.57.100}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "ip4dst", } \\
   & \texttt{"value": \{"addr": "192.168.57.100" \} \} }
 \end{tabularx}
 
-\python{SetIPDst} sets the IP v4 destination address.  Note that unlike the \netkat{IPDstEq} predicate,
+\python{SetIP4Dst} sets the IP v4 destination address.  Note that unlike the \netkat{IP4DstEq} predicate,
 there is no option for masking.  You must set a fixed IP address with all bits present.    
 
 The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
@@ -505,17 +512,17 @@ The proper Ethernet type for IP packets must already be set in the incoming pack
 \netkat{SetEthType} policy.  Otherwise, the packet will likely be dropped by a host or router before it 
 reaches its destination.
 
-\subsubsection{SetIPSrc}
+\subsubsection{SetIP4Src}
 
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
-\textsc{Python}   & \texttt{SetIPSrc("192.168.57.100")} \\ \\
+\textsc{Python}   & \texttt{SetIP4Src("192.168.57.100")} \\ \\
 \textsc{Raw}    & \texttt{ip4Src := 192.168.57.100}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "ip4src", } \\
   & \texttt{"value": \{"addr": "192.168.57.100" \} \} }
 \end{tabularx}
 
-\python{SetIPSrc} sets the IP v4 destination address.  Note that unlike the \netkat{IPSrcEq} predicate,
+\python{SetIP4Src} sets the IP v4 destination address.  Note that unlike the \netkat{IP4SrcEq} predicate,
 there is no option for masking.  You must set a fixed IP address with all bits present.    
 
 The proper Ethernet type for IP packets must already be set in the incoming packet, or through the 
@@ -527,6 +534,8 @@ reaches its destination.
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{SetPort(1)} \\ \\
+   & \texttt{SetPort(1,2,3)} \\ \\
+   & \texttt{SetPort([1,2,3])} \\ \\
 \textsc{Raw}    & \texttt{port := 1}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "location", } \\
  & \texttt{ "value": \{ "type": "physical", "port": 1 \} \} } 
@@ -538,7 +547,15 @@ A port number must be an integer from
 1 \ldots 65520, the upper limit of physical port numbers according to the OpenFlow 1.0 spec.  It can also be 
 a string convertible to an integer in this range.  The port number is not checked against any known list
 of port numbers on the switch, but any attempt to send a packet over a non-existent or non-operational
-port will fail.  
+port will fail silently.
+
+\python{SetPort} is the only modification policy that can take a list of arguments.  When more than one
+port is specified, there is an implicit \netkat{Union} between them -- in other words, packets are copied
+to each one of the ports.  
+
+A packet may have only one destination: a port, a query bucket, or the controller.  So if you use 
+\netkat{SetPort}, \netkat{SendToController}, or \netkat{SendToQuery} in a sequence, the last one will
+win.  If you want a packet to go to more than one destination, use \netkat{Union} between them.    
 
 \subsubsection{SetTCPDstPort}
 
@@ -684,6 +701,9 @@ In the REST version,
 the presence of the \python{id} attribute means the packet is Buffered.  The \python{buffer} attribute
 is the packet contents encoded in Base64.  
 
+The Frenetic Packet class, also described in Section \ref{introduction:packet_in} eases the programming
+in packet processing.
+
 \subsection{port\_down}
 
 \bigskip
@@ -797,6 +817,9 @@ out to the switch for processing.
 The Python parameters and REST attributes are the same as their \python{packet_in} counterparts.
 The exception is \python{actions} which is a Python or JSON list of policies.  The policies you can
 use here are limited \ldots the limitations are described in detail in Section \ref{introduction:packet_in}.  
+
+The Frenetic Packet class, also described in Section \ref{introduction:packet_in} eases the programming
+in packet processing.
 
 \subsection{port\_stats}
 

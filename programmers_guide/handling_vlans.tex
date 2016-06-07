@@ -73,7 +73,7 @@ If the destination is unknown, instead of flooding packets out \emph{all} ports 
 we'll flood over ports of the switch \emph{in the same VLAN}.  In other words, the Packet Out action will be:
 
 \begin{minted}{python}
-Output(Physical(2)) | Output(Physical(4)) | ...
+SetPort(2,4,...)
 \end{minted}
 
 We'll add some methods onto the \python{NetworkInformationBase} object to do some VLAN mapping.  The following

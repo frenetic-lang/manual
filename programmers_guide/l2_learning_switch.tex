@@ -88,7 +88,7 @@ There are a couple of new details to note:
 \item The \netkat{__init__} constructor must call the superclass constructor to properly initialize.
 \item Because we are writing in classes, we now distinguish the main loop of this application with 
 a check on \netkat{__main__}.  
-\item We are using the RYU packet parsing routines discussed in Section \ref{introduction:packet_in}
+\item We are using the Frenetic \python{Packet} object discussed in Section \ref{introduction:packet_in}
 \item The \netkat{packet_in} looks almost exactly like our pseudocode design
 \end{itemize}
 
@@ -126,7 +126,7 @@ because they involve different values for \netkat{EthDst}.  So we just Union the
 our entire NetKAT program.
 
 So let's write some methods for calculating the policies
-We'll add this code to learning1 (listed in \codefilename{l2_learning_switch/learning2.py}:
+We'll add this code to learning1 (listed in \codefilename{l2_learning_switch/learning2.py}):
 
 \inputminted[firstline=23,lastline=31]{python}{code/l2_learning_switch/learning2.py}
 
@@ -137,7 +137,7 @@ When shall we install these rules?   We could install them on every incoming pac
 overkill. We really only need to recalculate them when we see a newly learned MAC and port.  So we add them
 to that conditional:
 
-\inputminted[firstline=42,lastline=44]{python}{code/l2_learning_switch/learning2.py}
+\inputminted[firstline=41,lastline=43]{python}{code/l2_learning_switch/learning2.py}
 
 Now run it and try a pingall from Mininet:
 

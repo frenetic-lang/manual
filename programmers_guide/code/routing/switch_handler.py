@@ -1,6 +1,6 @@
 import frenetic
 from frenetic.syntax import *
-from ryu.lib.packet import ethernet, ether_types, ipv4, arp
+from frenetic.packet import *
 from network_information_base import *
 
 class SwitchHandler(object):
@@ -30,7 +30,7 @@ class SwitchHandler(object):
   def policy(self):
     return Union(self.policy_for_switch(dpid) for dpid in self.nib.switch_dpids())
 
-  def packet_in(self, dpid, port_id, payload):
+  def packet_in(self, pkt, payload):
     nib = self.nib
 
     # If we haven't learned the ports yet, just exit prematurely
@@ -38,37 +38,33 @@ class SwitchHandler(object):
       return
 
     # If this packet was received at the router, just ignore
-    if dpid == self.nib.router_dpid:
+    if pkt.switch == self.nib.router_dpid:
       return
 
-    # Parse the interesting stuff from the packet
-    ethernet_packet = self.main_app.packet(payload, "ethernet")
-    src_mac = ethernet_packet.src
-    dst_mac = ethernet_packet.dst
+    src_mac = pkt.ethSrc
+    dst_mac = pkt.ethDst
 
     # If we haven't learned the source mac
-    if nib.port_for_mac_on_switch( src_mac, dpid ) == None: 
+    if nib.port_for_mac_on_switch( src_mac, pkt.switch ) == None: 
       # If this is an IP or ARP packet, record the IP address too
       src_ip = None
 
       # Don't learn the IP-mac for packets coming in from the router port
       # since they will be incorrect.  (Learn the MAC address though)
-      if nib.is_internal_port(dpid, port_id):
+      if nib.is_internal_port(pkt.switch, pkt.port):
         pass
-      elif ethernet_packet.ethertype == ether_types.ETH_TYPE_IP:
-        src_ip = self.main_app.packet(payload,"ipv4").src
-      elif ethernet_packet.ethertype == ether_types.ETH_TYPE_ARP:
-        src_ip = self.main_app.packet(payload,"arp").src_ip
+      elif pkt.ethType == 0x800 or pkt.ethType == 0x806:   # IP or ARP
+        src_ip = pkt.ip4Src
 
-      nib.learn( src_mac, dpid, port_id, src_ip)
+      nib.learn( src_mac, pkt.switch, pkt.port, src_ip)
 
     # Look up the destination mac and output it through the
     # learned port, or flood if we haven't seen it yet.
-    dst_port = nib.port_for_mac_on_switch( dst_mac, dpid )
+    dst_port = nib.port_for_mac_on_switch( dst_mac, pkt.switch )
     if  dst_port != None:
-      actions = [ Output(Physical(dst_port)) ]
+      actions = SetPort(dst_port)
     else:
-      actions = [ Output(Physical(p)) for p in nib.all_ports_except(dpid, port_id) ]
-    self.main_app.pkt_out(dpid, payload, actions )
+      actions = SetPort(nib.all_ports_except(pkt.switch, pkt.port))
+    self.main_app.pkt_out(pkt.switch, payload, actions )
 
 

@@ -1,7 +1,7 @@
 import sys, logging
 import frenetic
 from frenetic.syntax import *
-from ryu.lib.packet import ethernet
+from frenetic.packet import *
 from network_information_base import *
 
 class LearningApp2(frenetic.App):
@@ -33,10 +33,9 @@ class LearningApp2(frenetic.App):
   def packet_in(self, dpid, port_id, payload):
     nib = self.nib
 
-    # Parse the interesting stuff from the packet
-    ethernet_packet = self.packet(payload, "ethernet")
-    src_mac = ethernet_packet.src
-    dst_mac = ethernet_packet.dst
+    pkt = Packet.from_payload(dpid, port_id, payload)
+    src_mac = pkt.ethSrc
+    dst_mac = pkt.ethDst
 
     # If we haven't learned the source mac, do so
     if nib.port_for_mac( src_mac ) == None:
@@ -47,9 +46,9 @@ class LearningApp2(frenetic.App):
     # learned port, or flood if we haven't seen it yet.
     dst_port = nib.port_for_mac( dst_mac )
     if  dst_port != None:
-      actions = [ Output(Physical(dst_port)) ]
+      actions = SetPort(dst_port)
     else:
-      actions = [ Output(Physical(p)) for p in nib.all_ports_except(port_id) ]
+      actions = SetPort( nib.all_ports_except(port_id) )
     self.pkt_out(dpid, payload, actions )
 
 if __name__ == '__main__':

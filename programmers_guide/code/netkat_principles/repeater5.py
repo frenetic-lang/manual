@@ -9,7 +9,7 @@ class RepeaterApp5(frenetic.App):
   def port_policy(self, in_port, all_ports):
     return \
       Filter(PortEq(in_port)) >> \
-      Union( SetPort(p) for p in all_ports if p != in_port )
+      SetPort( [p for p in all_ports if p != in_port] )
 
   def all_ports_policy(self, all_ports):
     return Union( self.port_policy(p, all_ports) for p in all_ports )
@@ -37,7 +37,7 @@ class RepeaterApp5(frenetic.App):
     if port_id not in self.all_ports:
       self.all_ports.append(port_id)
       self.update(self.policy())
-    flood_actions = [ Output(Physical(p)) for p in self.all_ports if p != port_id ]
+    flood_actions = SetPort( [p for p in self.all_ports if p != in_port] )
     self.pkt_out(dpid, payload, flood_actions )
 
 logging.basicConfig(\

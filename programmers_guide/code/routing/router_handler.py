@@ -1,8 +1,7 @@
 import binascii
 import frenetic
 from frenetic.syntax import *
-from ryu.lib.packet import packet, ether_types, ethernet, arp
-from ryu.ofproto import ether
+from frenetic.packet import *
 from network_information_base import *
 
 class WaitingPacket(object):
@@ -92,27 +91,24 @@ class RouterHandler(object):
     self.logger.info("All packets for IP "+dst_ip+" released.")
     del self.arp_requests[dst_ip]
 
-  def arp_payload(self, e, pkt):
-    p = packet.Packet()
-    p.add_protocol(e)
-    p.add_protocol(pkt)
-    p.serialize()
-    return NotBuffered(binascii.a2b_base64(binascii.b2a_base64(p.data)))
-
   def arp_reply(self, dpid, port, src_mac, src_ip, target_mac, target_ip):
-    e = ethernet.ethernet(dst=src_mac, src=target_mac, ethertype=ether.ETH_TYPE_ARP)
     # Note for the reply we flip the src and target, as per ARP rules
-    pkt = arp.arp_ip(arp.ARP_REPLY, target_mac, target_ip, src_mac, src_ip)
-    payload = self.arp_payload(e, pkt)
-    self.main_app.pkt_out(dpid, payload, [Output(Physical(port))])
+    arp_reply_pkt = Packet( 
+      ethSrc=target_mac, ethDst=src_mac, ethType = 0x806,
+      ip4Src=target_ip, ip4Dst=src_ip, ipProto=2
+    )
+    payload = arp_reply_pkt.to_payload()
+    self.main_app.pkt_out(dpid, payload, SetPort(port))
 
   def arp_request(self, dpid, port, src_mac, src_ip, target_ip):
-    e = ethernet.ethernet(dst="ff:ff:ff:ff:ff:ff", src=src_mac, ethertype=ether.ETH_TYPE_ARP)
-    pkt = arp.arp_ip(arp.ARP_REQUEST, src_mac, src_ip, "00:00:00:00:00:00", target_ip)
-    payload = self.arp_payload(e, pkt)
-    self.main_app.pkt_out(dpid, payload, [Output(Physical(port))])
+    arp_request_pkt = Packet( 
+      ethSrc=src_mac, ethDst="ff:ff:ff:ff:ff:ff", ethType = 0x806,
+      ip4Src=src_ip, ip4Dst=target_ip, ipProto=1
+    )
+    payload = arp_request_pkt.to_payload()
+    self.main_app.pkt_out(dpid, payload, SetPort(port))
 
-  def packet_in(self, dpid, port_id, payload):
+  def packet_in(self, pkt, payload):
     nib = self.nib
 
     # If we haven't learned the ports yet, just exit prematurely
@@ -120,30 +116,27 @@ class RouterHandler(object):
       return
 
     # If this packet was not received at the router, just ignore
-    if dpid != self.nib.router_dpid:
+    if pkt.switch != self.nib.router_dpid:
       return
 
-    # Parse the interesting stuff from the packet
-    ethernet_packet = self.main_app.packet(payload, "ethernet")
-    src_mac = ethernet_packet.src
-    dst_mac = ethernet_packet.dst
+    src_mac = pkt.ethSrc
+    dst_mac = pkt.ethDst
 
-    if ethernet_packet.ethertype == ether_types.ETH_TYPE_ARP:
-      arp_packet = self.main_app.packet(payload, "arp")
+    if pkt.ethType == 0x806: # ARP
       reply_sent = False
-      if arp_packet.opcode == arp.ARP_REQUEST:
-        self.logger.info("Got ARP request from "+arp_packet.src_ip+" for "+arp_packet.dst_ip)
+      if pkt.ipProto == 1:
+        self.logger.info("Got ARP request from "+pkt.ip4Src+" for "+pkt.ip4Dst)
         for sn in self.nib.subnets:
-          if arp_packet.dst_ip == sn.gateway:
+          if pkt.ip4Dst == sn.gateway:
             self.logger.info("ARP Reply sent")
-            self.arp_reply( dpid, port_id, src_mac, arp_packet.src_ip, sn.router_mac, arp_packet.dst_ip)
+            self.arp_reply( pkt.switch, pkt.port, src_mac, pkt.ip4Src, sn.router_mac, pkt.ip4Dst)
             reply_sent = True
         if not reply_sent:
           self.logger.info("ARP Request Ignored")
 
       # For ARP replies, see if the reply was meant for us, and release any queued packets if so
-      elif arp_packet.src_ip in self.arp_requests:
-        src_ip = arp_packet.src_ip
+      elif pkt.ip4Src in self.arp_requests:
+        src_ip = pkt.ip4Src
         self.logger.info("ARP reply for "+src_ip+" received.  Releasing packets.")
         dev = nib.hosts[src_mac]
         if src_ip != dev.ip:
@@ -151,32 +144,27 @@ class RouterHandler(object):
         self.release_waiting_packets(src_ip)
 
       else:
-        self.logger.info("ARP reply from "+arp_packet.src_ip+" for "+arp_packet.dst_ip+" ignored.")
+        self.logger.info("ARP reply from "+pkt.ip4Src+" for "+pkt.ip4Dst+" ignored.")
 
-    elif ethernet_packet.ethertype == ether_types.ETH_TYPE_IP:
-      ip_packet = self.main_app.packet(payload,"ipv4")
-      src_ip = ip_packet.src
-      dst_ip = ip_packet.dst
+    elif pkt.ethType == 0x800:  # IP
+      src_ip = pkt.ip4Src
+      dst_ip = pkt.ip4Dst
 
       # Now send it out the appropriate interface, if we know it.
       dst_mac = nib.mac_for_ip(dst_ip)
       if dst_mac == None:
         # We don't know the mac address, so we send an ARP request and enqueue the packet
-        self.enqueue_waiting_packet(dst_ip, dpid, port_id, payload)
+        self.enqueue_waiting_packet(dst_ip, pkt.switch, pkt.port, payload)
 
       # This will be fairly rare, in the case where we know the destination IP but the rule
       # hasn't been installed yet.  In this case, we emulate what the rule should do.
       else:
         sn = nib.subnet_for(dst_ip)
         if sn != None:
-          actions = [ 
-            SetEthSrc(sn.router_mac),
-            SetEthDst(dst_mac),
-            Output(Physical(sn.router_port))
-          ]
-          self.main_app.pkt_out(dpid, payload, actions)
+          actions = [SetEthSrc(sn.router_mac), SetEthDst(dst_mac), SetPort(sn.router_port)]
+          self.main_app.pkt_out(pkt.switch, payload, actions)
         else:
           # Usually we would send the packet to the default gateway, but in this case.  
           self.logger.info("Packet for destination "+dst_ip+" on unknown network dropped")
     else:
-      self.logger.info("Router: Got packet with Ether type "+str(ethernet_packet.ethertype))
+      self.logger.info("Router: Got packet with Ether type "+str(pkt.ethType))

@@ -66,7 +66,7 @@ The edge switch policy is set in the application \codefilename{multiswitch_topol
 
 And packets for unlearned MACs are handled by \python{packet_in}:
 
-\inputminted[firstline=56,lastline=80]{python}{code/multiswitch_topologies/multiswitch1.py}
+\inputminted[firstline=54,lastline=78]{python}{code/multiswitch_topologies/multiswitch1.py}
 
 Here, we have to be a bit careful.  In a one-switch setup, we simply learn all packets coming in
 on all ports.  But in a multi-switch setup, we only want to learn MACs from packets coming from
@@ -80,23 +80,21 @@ To keep things perfectly clear, we explicitly deny learning of MAC's arriving on
 
 Now for the core switch.  In our first incarnation, we'll take a naive approach.  We'll make it like
 a repeater -- packets coming in port $p$ will be flooded out all non-$p$ ports.  This would cause problems
-in a topology with loops, but our fixed topology has no loops in it and so is safe.  The edge
+in a topology with loops, but our fixed topology has no loops in it and so is safe.  The core
 switch policy looks like this:
 
-\inputminted[firstline=42,lastline=51]{python}{code/multiswitch_topologies/multiswitch1.py}
+\inputminted[firstline=42,lastline=49]{python}{code/multiswitch_topologies/multiswitch1.py}
 
 And finally because the core and edge switch policies are disjoint, we can tie them together with a 
 \netkat{Union}:
 
-\inputminted[firstline=53,lastline=54]{python}{code/multiswitch_topologies/multiswitch1.py}
+\inputminted[firstline=51,lastline=52]{python}{code/multiswitch_topologies/multiswitch1.py}
 
 We start up the Mininet topology and the Pingall pings all $16^2$ host pairs in order.  The Mininet 
 topology \texttt{tree,2,4} means a tree toplogy with two levels and fanout four, meaning four
 edge switches and four hosts connected to each edge switch.   
 
 \begin{minted}{console}
-vagrant@frenetic:~$ cat ~/bin/mnt4
-sudo mn --topo=tree,2,4 --controller=remote --mac
 vagrant@frenetic:~$ sudo mn --topo=tree,2,4 --controller=remote --mac
 *** Creating network
 *** Adding controller
@@ -155,13 +153,13 @@ we don't know.
 
 The following code is in \codefilename{multiswitch_topologies/multiswitch2.py}:
 
-\inputminted[firstline=22,lastline=32]{python}{code/multiswitch_topologies/multiswitch2.py}
+\inputminted[firstline=22,lastline=31]{python}{code/multiswitch_topologies/multiswitch2.py}
 
 Next, this policy constructs the learned MAC rules.  Since there's no overlap here, a simple
 \netkat{Union} can be used to combine them.  (We have factored out the \netkat{SwitchEq} filter
 because we'll use it for the entire switch rule.)
 
-\inputminted[firstline=62,lastline=70]{python}{code/multiswitch_topologies/multiswitch2.py}
+\inputminted[firstline=60,lastline=68]{python}{code/multiswitch_topologies/multiswitch2.py}
 
 Finally, the entire core switch policy puts them together.  Flooding rules and learned MAC rules have
 considerable overlap -- you can imagine a packet destined for a learned MAC (which matches a learned
@@ -169,7 +167,7 @@ MAC rule) which comes in a core switch port (which matches a flooding rule).  So
 to disambiguate them.  And here we pop on the filter for the core switch, neatly factoring it out 
 of the individual rules:
 
-\inputminted[firstline=72,lastline=80]{python}{code/multiswitch_topologies/multiswitch2.py}
+\inputminted[firstline=70,lastline=78]{python}{code/multiswitch_topologies/multiswitch2.py}
 
 OK, now for the edge switches.  We basically want to refactor the rule into the following psuedocode:
 
@@ -188,7 +186,7 @@ explicitly filter out internal ports from the learning process with NetKAT predi
 
 The new edge switch rule follows this psuedocode skeleton:
 
-\inputminted[firstline=34,lastline=54]{python}{code/multiswitch_topologies/multiswitch2.py}
+\inputminted[firstline=39,lastline=52]{python}{code/multiswitch_topologies/multiswitch2.py}
 
 The remaining code stays the same.  Now doing a Ping All in Mininet is a much faster experience -- once all the
 ports are learned (h1 pings each host in turn first, so that does the learning), no packets hit the controller.
@@ -416,7 +414,7 @@ NIB, which has precalculated all the routes for us.
 
 The following code is in \codefilename{multiswitch_topologies/multiswitch3.py}:
 
-\inputminted[firstline=62,lastline=71]{python}{code/multiswitch_topologies/multiswitch3.py}
+\inputminted[firstline=60,lastline=68]{python}{code/multiswitch_topologies/multiswitch3.py}
 
 In this example, the core switch rule calculation has been delegated to the \python{next_hop} calculations in
 the NIB.  
@@ -426,7 +424,7 @@ receive the flooded packets) and one uplink port (which also must receive the fl
 ingress port as always.  Core switch flooding, however, must respect the spanning tree so as not to
 introduce loops:
 
-\inputminted[firstline=22,lastline=26]{python}{code/multiswitch_topologies/multiswitch3.py}
+\inputminted[firstline=22,lastline=24]{python}{code/multiswitch_topologies/multiswitch3.py}
 
 And with that, our network keeps itself loop-free and functional.  If the topology changes, we simply
 change the GraphViz file and restart that network application, which then recalculates the spanning

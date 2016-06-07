@@ -9,7 +9,7 @@ class RepeaterApp4(frenetic.App):
   def port_policy(self, in_port, all_ports):
     return \
       Filter(PortEq(in_port)) >> \
-      Union( SetPort(p) for p in all_ports if p != in_port )
+      SetPort( [p for p in all_ports if p != in_port] )
 
   def all_ports_policy(self, all_ports):
     return Union( self.port_policy(p, all_ports) for p in all_ports )

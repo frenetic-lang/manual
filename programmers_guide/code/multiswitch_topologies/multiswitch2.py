@@ -1,7 +1,7 @@
 import sys,logging
 import frenetic
 from frenetic.syntax import *
-from ryu.lib.packet import ethernet
+from frenetic.packet import *
 from network_information_base import *
 
 class MultiswitchApp2(frenetic.App):
@@ -20,9 +20,7 @@ class MultiswitchApp2(frenetic.App):
     self.current_switches(callback=handle_current_switches)
 
   def policy_flood_one_port(self, dpid, port_id):
-    outputs = Union(
-      SetPort(p) for p in self.nib.all_ports_except(dpid, port_id)
-    )
+    outputs = SetPort( self.nib.all_ports_except(dpid, port_id) )
     return Filter(PortEq(port_id)) >> outputs
 
   def policy_flood(self, dpid):
@@ -89,10 +87,9 @@ class MultiswitchApp2(frenetic.App):
     if nib.switch_not_yet_connected():
       return
 
-    # Parse the interesting stuff from the packet
-    ethernet_packet = self.packet(payload, "ethernet")
-    src_mac = ethernet_packet.src
-    dst_mac = ethernet_packet.dst
+    pkt = Packet.from_payload(dpid, port_id, payload)
+    src_mac = pkt.ethSrc
+    dst_mac = pkt.ethDst
 
     # If we haven't learned the source mac, do so
     if nib.port_for_mac_on_switch( src_mac, dpid ) == None: 
@@ -107,9 +104,9 @@ class MultiswitchApp2(frenetic.App):
     # learned port, or flood if we haven't seen it yet.
     dst_port = nib.port_for_mac_on_switch( dst_mac, dpid )
     if  dst_port != None:
-      actions = [ Output(Physical(dst_port)) ]
+      actions = SetPort(dst_port)
     else:
-      actions = [ Output(Physical(p)) for p in nib.all_ports_except(dpid, port_id) ]
+      actions = SetPort( nib.all_ports_except(dpid, port_id) )
     self.pkt_out(dpid, payload, actions )
 
   def port_down(self, dpid, port_id):

@@ -1,7 +1,7 @@
 import sys,logging
 import frenetic
 from frenetic.syntax import *
-from ryu.lib.packet import ethernet, vlan
+from frenetic.packet import *
 from network_information_base_dynamic import *
 
 class VlanApp2(frenetic.App):
@@ -46,12 +46,10 @@ class VlanApp2(frenetic.App):
     if nib.switch_not_yet_connected():
       return
 
-    # Parse the interesting stuff from the packet
-    ethernet_packet = self.packet(payload, "ethernet")
-    vlan_packet = self.packet(payload, "vlan")
-    src_mac = ethernet_packet.src
-    dst_mac = ethernet_packet.dst
-    src_vlan = vlan_packet.vid
+    pkt = Packet.from_payload(dpid, port_id, payload)
+    src_mac = pkt.ethSrc
+    dst_mac = pkt.ethDst
+    src_vlan = self.nib.vlan_of_port(port_id)
 
     # If we haven't learned the source mac, do so
     if nib.port_for_mac( src_mac ) == None:
@@ -65,11 +63,11 @@ class VlanApp2(frenetic.App):
       # Don't output it if it's on a different VLAN
       dst_vlan = nib.vlan_of_port(dst_port)
       if src_vlan == dst_vlan:
-        actions = [ Output(Physical(dst_port)) ]
+        actions = SetPort(dst_port)
       else:
         actions = [ ]
     else:
-      actions = [ Output(Physical(p)) for p in nib.all_vlan_ports_except(src_vlan, port_id) ]
+      actions = SetPort( nib.all_vlan_ports_except(src_vlan, port_id) )
     self.pkt_out(dpid, payload, actions )
 
   def port_down(self, dpid, port_id):

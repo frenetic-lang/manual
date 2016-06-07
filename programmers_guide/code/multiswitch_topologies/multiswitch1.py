@@ -1,7 +1,7 @@
 import sys,logging
 import frenetic
 from frenetic.syntax import *
-from ryu.lib.packet import ethernet
+from frenetic.packet import *
 from network_information_base import *
 
 class MultiswitchApp1(frenetic.App):
@@ -21,15 +21,15 @@ class MultiswitchApp1(frenetic.App):
 
   def policy_for_dest(self, dpid, mac_port):
     (mac, port) = mac_port
-    return Filter(SwitchEq(dpid) & EthDstEq(mac)) >> SetPort(port)
+    return Filter(EthDstEq(mac)) >> SetPort(port)
 
   def policies_for_dest(self, dpid, all_mac_ports):
     return [ self.policy_for_dest(dpid, mp) for mp in all_mac_ports ]
 
   def policy_for_edge_switch(self, dpid):
     return \
+      Filter(SwitchEq(dpid)) >> \
       IfThenElse(
-        SwitchEq(dpid) & 
         (EthSrcNotEq( self.nib.all_learned_macs_on_switch(dpid) ) | 
         EthDstNotEq( self.nib.all_learned_macs_on_switch(dpid) )),
         SendToController("multiswitch"),
@@ -40,9 +40,7 @@ class MultiswitchApp1(frenetic.App):
     return Union(self.policy_for_edge_switch(dpid) for dpid in self.nib.edge_switch_dpids())
 
   def flood_core_switch(self, dpid, port_id):
-    outputs = Union(
-      SetPort(p) for p in self.nib.all_ports_except(dpid, port_id)
-    )
+    outputs = SetPort( self.nib.all_ports_except(dpid, port_id) )
     return Filter(PortEq(port_id)) >> outputs
 
   def policy_for_core_switch(self):
@@ -60,10 +58,9 @@ class MultiswitchApp1(frenetic.App):
     if nib.switch_not_yet_connected():
       return
 
-    # Parse the interesting stuff from the packet
-    ethernet_packet = self.packet(payload, "ethernet")
-    src_mac = ethernet_packet.src
-    dst_mac = ethernet_packet.dst
+    pkt = Packet.from_payload(dpid, port_id, payload)
+    src_mac = pkt.ethSrc
+    dst_mac = pkt.ethDst
 
     # If we haven't learned the source mac, do so
     if nib.port_for_mac_on_switch( src_mac, dpid ) == None: 
@@ -78,9 +75,9 @@ class MultiswitchApp1(frenetic.App):
     # learned port, or flood if we haven't seen it yet.
     dst_port = nib.port_for_mac_on_switch( dst_mac, dpid )
     if  dst_port != None:
-      actions = [ Output(Physical(dst_port)) ]
+      actions = SetPort(dst_port)
     else:
-      actions = [ Output(Physical(p)) for p in nib.all_ports_except(dpid, port_id) ]
+      actions = SetPort( nib.all_ports_except(dpid, port_id) )
     self.pkt_out(dpid, payload, actions )
 
   def port_down(self, dpid, port_id):
