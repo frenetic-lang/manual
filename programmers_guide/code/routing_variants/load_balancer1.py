@@ -1,5 +1,6 @@
-import sys,logging,datetime
-#sys.path.append("../routing")
+from frenetic.packet import *
+import sys,logging,datetime,time
+sys.path.append("../routing")
 from load_balancer_nib import *
 from switch_handler import *
 from load_balancer_handler import *
@@ -24,9 +25,7 @@ class LoadBalancerApp(frenetic.App):
     self.load_balancer_handler = LoadBalancerHandler(self.nib, logging, self)
 
   def policy(self):
-    policy_list = self.switch_handler.policy_list()
-    policy_list.append(self.load_balancer_handler.policy())
-    return Union(policy_list)
+    return self.switch_handler.policy() | self.load_balancer_handler.policy()
 
   def update_and_clear_dirty(self):
     self.update(self.policy())
@@ -36,19 +35,25 @@ class LoadBalancerApp(frenetic.App):
     def handle_current_switches(switches):
       logging.info("Connected to Frenetic - Switches: "+str(switches))
       self.nib.set_all_ports( switches )
-      self.load_balancer_handler.connected()
       self.update( self.policy() )
+      # Wait a few seconds for the policy to be installed
+      logging.info("Pausing 2 seconds to allow rules to be installed")
+      IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), 
+        self.load_balancer_handler.connected
+      )
     self.current_switches(callback=handle_current_switches)
 
   def packet_in(self, dpid, port, payload):
-    self.switch_handler.packet_in(dpid, port, payload)
-    self.load_balancer_handler.packet_in(dpid, port, payload)
+    pkt = Packet.from_payload(dpid, port, payload)
+    self.switch_handler.packet_in(pkt, payload)
+    self.load_balancer_handler.packet_in(pkt, payload)
 
     if self.nib.is_dirty():
-      logging.info("Installing new policy")
       # This doesn't actually wait two seconds, but it serializes the updates 
       # so they occur in the right order
-      IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), self.update_and_clear_dirty)
+      IOLoop.instance().add_timeout(datetime.timedelta(seconds=2), 
+        self.update_and_clear_dirty
+      )
 
   def port_down(self, dpid, port_id):
     self.nib.unlearn( self.nib.mac_for_port_on_switch(dpid, port_id) )

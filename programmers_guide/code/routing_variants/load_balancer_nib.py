@@ -1,5 +1,5 @@
 import sys
-#sys.path.append("../routing")
+sys.path.append("../routing")
 from network_information_base import *
 
 class LoadBalancerNIB(NetworkInformationBase):
