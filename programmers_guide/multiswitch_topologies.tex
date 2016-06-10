@@ -95,7 +95,7 @@ topology \texttt{tree,2,4} means a tree toplogy with two levels and fanout four,
 edge switches and four hosts connected to each edge switch.   
 
 \begin{minted}{console}
-vagrant@frenetic:~$ sudo mn --topo=tree,2,4 --controller=remote --mac
+frenetic@ubuntu-1404:~$ sudo mn --topo=tree,2,4 --controller=remote --mac
 *** Creating network
 *** Adding controller
 Unable to contact the remote controller at 127.0.0.1:6633
@@ -259,7 +259,7 @@ for a total of $1 + 3 + 9 = 13$ switches and three hosts connected to the 9 leve
 hosts:
 
 \begin{minted}{console}
-vagrant@frenetic:~$ sudo mn --topo=tree,3,3 --controller=remote --mac
+frenetic@ubuntu-1404:~$ sudo mn --topo=tree,3,3 --controller=remote --mac
 *** Creating network
 *** Adding controller
 Unable to contact the remote controller at 127.0.0.1:6633
@@ -362,7 +362,7 @@ in our case all edges have cost 1).  Then we calculate all the enabled ports who
 spanning tree.  We print the spanning tree to the log for reference:
 
 \begin{minted}{console}
-vagrant@frenetic:~/manual/programmers_guide/code/multiswitch_topologies$ python multiswitch3.py
+frenetic@ubuntu-1404:~/manual/programmers_guide/code/multiswitch_topologies$ python multiswitch3.py
 2016-05-27 14:49:11,162 [INFO] ---> Reading Topology from multiswitch_topo.dot
 2016-05-27 14:49:11,163 [INFO] ---> Remembering internal ports
 2016-05-27 14:49:11,164 [INFO] ---> Calculating spanning tree

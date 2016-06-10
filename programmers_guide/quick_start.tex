@@ -18,19 +18,19 @@ you can use the instructions in \ref{productionalizing:install}.
 
 First you'll need the following prerequisites: 
 
-\begin{itemize}
-\item Install VirtualBox from https://www.virtualbox.org/wiki/Downloads.  Use the latest version platform package appropriate for your system.  
-\item Install Vagrant at http://www.vagrantup.com/downloads.  Vagrant automates the process of building VM's from scratch, and Frenetic VM uses it to build its own environment.  
-\item Install Frenetic VM from https://github.com/frenetic-lang/frenetic-vm.  You can simply use the Download Zip button and unzip to an appropriate directory on your system, like frenetic-vm.  Then from a terminal or command prompt:
-\end{itemize}
+\begin{enumerate}
+\item Install VirtualBox from \texttt{https://www.virtualbox.org/wiki/Downloads}.  Use the latest version platform package appropriate for your system.  
+\item From 
+\texttt{http://download.frenetic-lang.org/uservm/frenetic-uservm-current}
+download the latest Frentic User VM -- this file is about 1.5 GB and
+may take about 10 minutes or so to download.  
+\item Unzip the file and import the \codefilename{.ova} file into VirtualBox.  This takes two minutes or
+so.  
+\end{enumerate}
 
-\begin{minted}{console}
-$ cd /path/to/frenetic-vm
-$ vagrant up
- ... lots of text 
-\end{minted}
-
-The build process may take 15 minutes to an hour, depending on the speed of your system and Internet connection. 
+Then you start up the Frenetic User VM from VirtualBox.  This automtically logs in to a user named 
+\texttt{frenetic}.  (The password to this account is \texttt{frenetic} as well, just in case you 
+need it.)
 
 \section{What Do You Get With Frenetic VM?}
 
@@ -49,58 +49,16 @@ Hmmm, that's a lot of software - what do {\it you} bring to the table?  You writ
 
 \section{An Attempt at Hello World}
 
-So let's dive right in.  We'll set up a Mininet network with one switch and two hosts.  First you should work from the directory where you installed Frenetic VM.
-
-\begin{minted}{console}
- $ cd /path/to/frenetic-vm
-\end{minted}
- 
-And start up the VM:
-
-\begin{minted}{console}
-$ vagrant up
- ringing machine 'default' up with 'virtualbox' provider...
-==> default: Clearing any previously set forwarded ports...
-==> default: Clearing any previously set network interfaces...
-==> default: Preparing network interfaces based on configuration...
-    default: Adapter 1: nat
-==> default: Forwarding ports...
-    default: 22 => 2222 (adapter 1)
-==> default: Running 'pre-boot' VM customizations...
-==> default: Booting VM...
-==> default: Waiting for machine to boot. This may take a few minutes...
-    default: SSH address: 127.0.0.1:2222
-    default: SSH username: vagrant
-    default: SSH auth method: private key
-    default: Warning: Connection timeout. Retrying...
-==> default: Machine booted and ready!
-==> default: Checking for guest additions in VM...
-==> default: Setting hostname...
-==> default: Mounting shared folders...
-    default: /vagrant => /Users/cr396/frenetic-vm
-    default: /home/vagrant/src => /Users/cr396/frenetic-vm/src
-==> default: Machine already provisioned. Run `vagrant provision` or...
-==> default: to force provisioning. Provisioners marked to run always...
-\end{minted}
-
-Then log in to the VM.  At this point your command prompt will change to {\tt vagrant@frenetic} to distinguish it
-from your host machine.
-
-\begin{minted}{console}
- $ vagrant ssh
-Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.16.0-30-generic x86_64)
-
- * Documentation:  https://help.ubuntu.com/
-Last login: Tue Oct  6 10:35:06 2015 from 10.0.2.2
-vagrant@frenetic:~$ 
-\end{minted}
-
-So you are now working inside an Ubuntu-based VM.  
+So let's dive right in.  We'll set up a Mininet network with one switch and two hosts.  
+First start up Frenetic User VM from VirtualBox if you haven't already.  
+Then start up a Terminal console -- two are provided in the VM under Accessories: Byobu Terminal
+(which integrates nicely with tmux)
+and LXTerminal (which has graphical tabs).  Either one will do.  
 
 Let's start up a Mininet network with one switch and two nodes.
 
 \begin{minted}{console}
-vagrant@frenetic:~$ sudo mn --topo=single,2 --controller=remote
+frenetic@ubuntu-1404:~$ sudo mn --topo=single,2 --controller=remote
 *** Creating network
 *** Adding controller
 Unable to contact the remote controller at 127.0.0.1:6633
@@ -159,30 +117,19 @@ Frenetic how to behave.
 
 You will write your network application in Python, using the Frenetic framework.  
 Mininet is currently running in our VM under its own terminal window, and we can leave it like that.   
-We'll do our programming in another window, so start up another one and log into our VM:
+We'll do our programming in another window, so start up another Terminal window and
+get the sample code from the Frenetic Github repository:
 
 \begin{minted}{console}
- $ cd /path/to/frenetic-vm
- $ vagrant ssh
-Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.16.0-30-generic x86_64)
-
- * Documentation:  https://help.ubuntu.com/
-Last login: Tue Oct  6 10:35:06 2015 from 10.0.2.2
-vagrant@frenetic:~$ 
-\end{minted}
-
-Get the sample code from the Frenetic Github repository:
-
-\begin{minted}{console}
-vagrant@frenetic:~$ git clone https://github.com/frenetic-lang/manual
+frenetic@ubuntu-1404:~$ git clone https://github.com/frenetic-lang/manual
 Cloning into 'manual'...
 remote: Counting objects: 102, done.
 remote: Total 102 (delta 0), reused 0 (delta 0), pack-reused 102
 Receiving objects: 100% (102/102), 1.46 MiB | 728.00 KiB/s, done.
 Resolving deltas: 100% (47/47), done.
 Checking connectivity... done.
-vagrant@frenetic:~$ cd manual/programmers_guide
-vagrant@frenetic:~/manual/programmers_guide$ cd code/quick_start
+frenetic@ubuntu-1404:~$ cd manual/programmers_guide
+frenetic@ubuntu-1404:~/manual/programmers_guide$ cd code/quick_start
 \end{minted}
 
 The following code is in \codefilename{quick_start/repeater.py}:
@@ -222,7 +169,7 @@ to login to the VM.
 In the first terminal window, we'll start up Frenetic:
 
 \begin{minted}{console}
-vagrant@frenetic:~src/frenetic$ ./frenetic.native http-controller \
+frenetic@ubuntu-1404:~src/frenetic$ ./frenetic.native http-controller \
   > --verbosity debug
  [INFO] Calling create!
  [INFO] Current uid: 1000
@@ -238,7 +185,7 @@ vagrant@frenetic:~src/frenetic$ ./frenetic.native http-controller \
 In the second, we'll start up Mininet with the same configuration as before:
 
 \begin{minted}{console}
-vagrant@frenetic:~$ sudo mn --topo=single,2 --controller=remote
+frenetic@ubuntu-1404:~$ sudo mn --topo=single,2 --controller=remote
 *** Creating network
 *** Adding controller
 \end{minted}
@@ -258,7 +205,7 @@ The following will appear in your Frenetic window to show a connection has been 
 And in the third, we'll start our repeater application:
 
 \begin{minted}{console}
-vagrant@frenetic:~/manual/code/quick_start$ python repeater.py
+frenetic@ubuntu-1404:~/manual/code/quick_start$ python repeater.py
 Starting the tornado event loop (does not return).
 \end{minted}
 

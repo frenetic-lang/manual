@@ -90,7 +90,7 @@ Figuring out the JSON by hand is pretty laborious.  So you can make the Python R
 bindings do the work for you like this:
 
 \begin{minted}{console}
-vagrant@frenetic:~$ python
+frenetic@ubuntu-1404:~$ python
 Python 2.7.6 (default, Jun 22 2015, 17:58:13)
 [GCC 4.8.2] on linux2
 Type "help", "copyright", "credits" or "license" for more information.
@@ -127,14 +127,16 @@ return something like this:
   { "type": "packet in", 
     "switch id": 1981745, 
     "port id": 1, 
-    "payload": {      "id": 19283745, 
+    "payload": {
+      "id": 19283745, 
       "buffer": "AB52DF57B12BF87216345" 
     }
   }
   { "type": "packet in", 
     "switch id": 923462, 
     "port id": 2, 
-    "payload": {      "buffer": "AB52DF57B12BF87216345" 
+    "payload": {
+      "buffer": "AB52DF57B12BF87216345" 
     }
   },
 ]

@@ -281,7 +281,7 @@ it inside clarifies the connection between the two.
 So let's start up Mininet with 4 hosts this time:
 
 \begin{minted}{console}
-vagrant@frenetic:~/workspace$ sudo mn --topo=single,4 --controller=remote
+frenetic@ubuntu-1404:~/workspace$ sudo mn --topo=single,4 --controller=remote
 *** Creating network
 *** Adding controller
 Unable to contact the remote controller at 127.0.0.1:6633
@@ -304,7 +304,7 @@ mininet>
 Start up Frenetic:
 
 \begin{minted}{console}
-vagrant@frenetic:~/workspace$ ~/src/frenetic/frenetic.native http-controller
+frenetic@ubuntu-1404:~/workspace$ ~/src/frenetic/frenetic.native http-controller
  [INFO] Calling create!
  [INFO] Current uid: 1000
  [INFO] Successfully launched OpenFlow controller with pid 2035
@@ -320,7 +320,7 @@ vagrant@frenetic:~/workspace$ ~/src/frenetic/frenetic.native http-controller
 And start up our application:
 
 \begin{minted}{console}
-vagrant@frenetic:~/workspace$ python repeater3.py
+frenetic@ubuntu-1404:~/workspace$ python repeater3.py
 No client_id specified. Using 0323e4bc31c94e81939d9f51640f1f5b
 Starting the tornado event loop (does not return).
 2016-04-12 09:51:14,578 [INFO] Connected to Frenetic - Switches: {1: [4, 2, 1, 3]}
