@@ -21,7 +21,7 @@ class StatsApp2(frenetic.App):
   def policy(self):
     return IfThenElse(
       self.http_predicate(), 
-      SendToQuery("http")) | SetPort(2), 
+      SendToQuery("http") | SetPort(2), 
       self.repeater_policy()
     )
 

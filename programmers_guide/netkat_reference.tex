@@ -892,7 +892,7 @@ All forms of the Frenetic command line accept the following parameters:
 \subsection{Command Line Compiler}
 
 \begin{minted}{console}
-./frenetic.native dump [ local | global | virtual ]
+frenetic dump [ local | global | virtual ]
 \end{minted}
 
 The commmand line compiler accepts Raw NetKAT files and compiles them into OpenFlow flow tables.
@@ -901,7 +901,7 @@ The command line options vary depending on the type of compiler used:
 \subsubsection{Local}
 
 \begin{minted}{console}
-./frenetic.native dump local FILE
+frenetic dump local FILE
 \end{minted}
 
 \begin{description}
@@ -918,7 +918,7 @@ The command line options vary depending on the type of compiler used:
 \subsubsection{Global}
 
 \begin{minted}{console}
-./frenetic.native dump global FILE
+frenetic dump global FILE
 \end{minted}
 
 \begin{description}
@@ -937,7 +937,7 @@ The command line options vary depending on the type of compiler used:
 \subsubsection{Virtual}
 
 \begin{minted}{console}
-./frenetic.native dump virtual FILE
+frenetic dump virtual FILE
 \end{minted}
 
 \begin{description}
@@ -969,7 +969,7 @@ The command line options vary depending on the type of compiler used:
 \subsection{Compile Server}
 
 \begin{minted}{console}
-./frenetic.native compile-server [ --http-port=9000 ] 
+frenetic compile-server [ --http-port=9000 ] 
 \end{minted}
 
 The compile server is an HTTP server, but it only compiles NetKAT policies into OpenFlow Flow Tables 
@@ -989,7 +989,7 @@ that an update will be followed by a \texttt{GET /$switch$/flow\_table} to trigg
 \subsection{HTTP Controller}
 
 \begin{minted}{console}
-./frenetic.native http-controller [ --http-port=9000 ] [ --openflow-port=6633 ]
+frenetic http-controller [ --http-port=9000 ] [ --openflow-port=6633 ]
 \end{minted}
 
 The HTTP Controller is the option we've been using the most in this book.  It accepts REST commands
@@ -999,7 +999,7 @@ above.
 \subsection{Shell}
 
 \begin{minted}{console}
-./frenetic.native shell 
+frenetic shell 
 \end{minted}
 
 The Shell is a REPL for Frenetic.  Like the HTTP server, it connects via OpenFlow to switches.  

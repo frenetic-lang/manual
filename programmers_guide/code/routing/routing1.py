@@ -10,7 +10,11 @@ class RoutingApp(frenetic.App):
 
   client_id = "routing"
 
-  def __init__(self, topo_file="topology.dot", routing_table_file="routing_table.json"):
+  # TODO: Make this read from same dir as Python file
+  def __init__(self, 
+    routing_table_file="/home/vagrant/manual/programmers_guide/code/routing/routing_table.json",
+    topo_file="/home/vagrant/manual/programmers_guide/code/routing/topology.dot"
+    ):
     frenetic.App.__init__(self)     
     self.nib = NetworkInformationBase(logging, topo_file, routing_table_file)
 

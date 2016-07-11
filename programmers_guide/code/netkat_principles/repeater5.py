@@ -37,7 +37,7 @@ class RepeaterApp5(frenetic.App):
     if port_id not in self.all_ports:
       self.all_ports.append(port_id)
       self.update(self.policy())
-    flood_actions = SetPort( [p for p in self.all_ports if p != in_port] )
+    flood_actions = SetPort( [p for p in self.all_ports if p != port_id] )
     self.pkt_out(dpid, payload, flood_actions )
 
 logging.basicConfig(\
