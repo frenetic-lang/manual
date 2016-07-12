@@ -8,14 +8,14 @@
 Layer 2, or L2, switching revolutionized networking in the 1990's.
 As LAN traffic grew, hub performance rapidly degraded as collisions became more and more frequent.
 L2 switches effectively cut the LAN into logical segments, performing the forwarding between them.
-This dramatically reduced the number of collisions, and also cut down on the traffic that individual
-NIC's had to filter out.  Just as the Plain Old 
+This reduced the number of collisions, and also cut down on the traffic that individual
+NIC's had to filter.  Just as the Plain Old 
 Telephone System evolved from party lines to direct lines, LAN hardware evolved from Hubs to 
 L2 switches, improving security, speed and signal quality.
 
 Of course, L2 switches were more technically sophisticated than hubs.  They required a processor, memory, and 
 some form of software.  In order to know which segments to forward traffic, they needed to 
-watch the Ethernet MAC addresses of traffic and theremember their respective ports.  In other words, the switch 
+watch the Ethernet MAC addresses of traffic and remember their respective ports.  In other words, the switch 
 \emph{learns} the MAC-to-port mappings, and thus L2 switches are called learning switches.    
 
 We can simulate the L2 switch with Frenetic.  By doing so, as well see in 
@@ -28,7 +28,7 @@ $$ netkat = f( nib, env ) $$
 Where $f$ is your application, $nib$ is the Network Information Base -- the information you have dynamically determined in your network through
 packets received by \netkat{pkt_in} -- and
 $env$ is other information (fixed configuration files, out-of-band network measurements, or whatever you want).  
-The output, $netkat$ is the NetKAT program.
+The output, $netkat$ is a NetKAT program -- more precisely, a NetKAT policy.
 
 Naturally, $nib$ is critical to a good design.  You don't need to capture all aspects of the network,
 only those needed to properly form switch rules.  In an L2 switch, we are really only interested in three 
@@ -55,7 +55,7 @@ Admittedly this is pretty sketchy, but it covers the interesting cases.  In part
 Ethernet broadcasts to MAC address ff:ff:ff:ff:ff:ff just by the fact that a source MAC will never
 equal ff:ff:ff:ff:ff:ff.  And flooding is exactly what you want to do in that case.
 
-So our NIB must maintain at least a list of MAC-to-port mappings.  
+So our NIB must maintain a list of MAC-to-port mappings.  
 In our Repeater app, our NIB was a single instance variable in the application itself:
 \netkat{self.ports}, which held a list of connected ports on the switch.  
 Now we'll evolve a little.
@@ -85,14 +85,16 @@ The following code is in \codefilename{l2_learning_switch/learning1.py}:
 There are a couple of new details to note:
 
 \begin{itemize}
-\item The \netkat{__init__} constructor must call the superclass constructor to properly initialize.
+\item The \netkat{__init__} constructor must call the superclass constructor 
+\python{frenetic.App.__init__} to properly initialize.
 \item Because we are writing in classes, we now distinguish the main loop of this application with 
 a check on \netkat{__main__}.  
 \item We are using the Frenetic \python{Packet} object discussed in Section \ref{introduction:packet_in}
 \item The \netkat{packet_in} looks almost exactly like our pseudocode design
 \end{itemize}
 
-Starting up Mininet, Frenetic and our application respectively, we try a \netkat{pingall} in Mininet and see
+Starting up Mininet with a 4-port switch, Frenetic and our application respectively, 
+we try a \netkat{pingall} in Mininet and see
 the following on the console:
 
 \begin{minted}{console}
@@ -125,8 +127,8 @@ And we just need one of these rules for each MAC we've learned.  But all of thes
 because they involve different values for \netkat{EthDst}.  So we just Union them all together and that's
 our entire NetKAT program.
 
-So let's write some methods for calculating the policies
-We'll add this code to learning1 (listed in \codefilename{l2_learning_switch/learning2.py}):
+So let's write some methods for calculating the policies.
+We'll add this code to LearningApp1 (the new program listed in \codefilename{l2_learning_switch/learning2.py}):
 
 \inputminted[firstline=23,lastline=31]{python}{code/l2_learning_switch/learning2.py}
 
@@ -142,7 +144,7 @@ to that conditional:
 Now run it and try a pingall from Mininet:
 
 \begin{minted}{console}
-frenetic@ubuntu-1404:~/manual/programmers_guide/code/l2_learning_switch$ python learning1.py
+frenetic@ubuntu-1404:~/manual/programmers_guide/code/l2_learning_switch$ python learning2.py
 Starting the tornado event loop (does not return).
 2016-04-14 13:33:22,965 [INFO] Connected to Frenetic - Switches: {1: [2, 4, 1, 3]}
 2016-04-14 13:33:26,447 [INFO] Learning: 86:d8:df:f0:95:75 attached to ( 1 )
@@ -169,22 +171,26 @@ drop |
 +----------------------------------------+
 \end{minted}
 
-Can you see the problem?  There's no longer a rule to send packets to the controller.  If packets
+Can you see the problem?  
+After installing a couple of destination rules,
+there's no longer a rule to send packets to the controller.  If packets
 are destined for the first two MAC addresses, that's not a problem.  But if they're destined for
 other MAC addresses, it \emph{is} a problem.
 
-If that's true, why didn't it stop after the first packet?  Remember NetKAT Principle 4, which 
+If that's true, why didn't Frenetic erase the \netkat{SendToController} policy 
+after the \emph{first} packet?  Remember NetKAT Principle 4, which 
 states there is a lag time between rule sending and rule installation.  In this case:
 
 \begin{enumerate}
 \item The first packet came to the controller, causing a rule regeneration.  These rules
 are sent to the switch, but are not installed yet.
-\item The second packet came to the controller, causing a second rule regeneration.
+\item Since the \netkat{SendToController} policy is still present, the second packet came to the controller, causing a second rule regeneration.
 \item The rules from the first packet are installed on the switch, effectively shutting off 
 any more packets from going to the controller.
 \item The rules from the second packet are installed.  
 \end{enumerate}
 
+So how do we fix this?
 One thing that definitely \emph{won't} work is to add the following rule with a Union:
 
 \begin{minted}{python}
@@ -193,20 +199,19 @@ id >> SendToController("learning_app")
 
 The \netkat{id} filter matches all packets, and therefore overlaps every other rule.  Even if we place this
 rule as the last rule in a set of Unions, \emph{that does not guarantee it'll be fired last.}  Frenetic 
-does not guarantee the OpenFlow rules will follow the order of the NetKAT rules.     
+does not guarantee the generated OpenFlow rules will follow the order of the NetKAT rules.     
 
-There are a few ways to solve this problem, but we'll try an easy one first.  
+There are several ways to solve this problem, but we'll try an easy one first.  
+Since the rules overlap, we'll apply NetKAT Principle 3 and use \netkat{IfThenElse}.
 In Chapter 2, we mentioned briefly that for every \netkat{FieldEq} NetKAT predicate, there is a corresponding
 \netkat{FieldNotEq} predicate.  We can use that in our policy, as we see in \netkat{learning3.py}:
 
 \inputminted[firstline=30,lastline=37]{python}{code/l2_learning_switch/learning3.py}
 
 Basically, we want to see all packets with an unfamiliar Ethernet source MAC (because we want to learn the
-port) or destination MAC (because we need to flood it out all ports).  Although we could set up 
-NetKAT policies to handle the latter case, it tends to be overkill since an unlearned destination MAC
-usually replies soon afterwards, the MAC is learned, and everything is good.  
+port) or destination MAC (because we need to flood it out all ports).  
 
-Notice how the this fairly simple NetKAT policy becomes a large OpenFlow table:
+Notice how this fairly simple NetKAT policy becomes a large OpenFlow table:
 
 \begin{minted}{console}
 [DEBUG] Setting up flow table
@@ -250,7 +255,7 @@ Fortunately, plugging and unplugging hosts sends OpenFlow events \netkat{port_up
 respectively.  We can write hooks that control MAC learning and unlearning.  The following
 code is in \netkat{learning4.py}:
 
-\inputminted[firstline=65,lastline=74]{python}{code/l2_learning_switch/learning4.py}
+\inputminted[firstline=60,lastline=69]{python}{code/l2_learning_switch/learning4.py}
 
 When we make a port change, we call \netkat{update()} to recalculate and send the NetKAT rules down to the 
 switch.  This keeps the forwarding tables in sync with the NIB.  
@@ -266,7 +271,7 @@ inactive status.
 \end{itemize}
 
 Modern switches solve these issues by holding MAC-to-port mappings for a certain amount of time, then 
-timing them out and (if they're still connected) relearning them.  Pure OpenFlow flow rules emulate
+expiring them and (if they're still connected) relearning them.  Pure OpenFlow flow rules emulate
 this by assigning a timeout value to each flow rule.   But NetKAT doesn't have timeouts, and indeed since
 NetKAT policies don't map one-to-one to flow table rules, it'd be difficult to pass this information on.
 

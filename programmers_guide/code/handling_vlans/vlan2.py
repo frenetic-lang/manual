@@ -49,7 +49,7 @@ class VlanApp2(frenetic.App):
     pkt = Packet.from_payload(dpid, port_id, payload)
     src_mac = pkt.ethSrc
     dst_mac = pkt.ethDst
-    src_vlan = self.nib.vlan_of_port(port_id)
+    src_vlan = pkt.vlan
 
     # If we haven't learned the source mac, do so
     if nib.port_for_mac( src_mac ) == None:

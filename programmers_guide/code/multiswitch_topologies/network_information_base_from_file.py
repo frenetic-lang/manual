@@ -118,11 +118,11 @@ class NetworkInformationBaseFromFile(object):
     if mac in self.hosts:
       return
 
-    # Compute next hop table: from each switch, which port do you need to go next to get to destination?
+    # Compute next hop table: from each switch, which port gets you closer to destination?
     self.nx_topo.add_node(mac)
     dpid_str = str(dpid)
     self.nx_topo.add_edge(dpid_str, mac)
-    # Note we don't need a mapping from mac to switch because we never see packets going INTO a host
+    # Note we don't need a mapping from mac to switch - we never see this hop
     self.port_mappings[dpid][mac] = port_id
 
     # Return shortest paths from each source in the graph to mac in the form 

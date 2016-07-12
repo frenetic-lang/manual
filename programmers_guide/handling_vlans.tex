@@ -12,7 +12,7 @@ during certain times of the month (like the Accounting department) needed to be 
 to prevent intolerable slowdowns in other departments.  
 
 The problem was network boundaries had to match physical switch boundaries.  If you bought switches with
-48 ports, and a department had 12 hosts, then 36 would remain unused.  Or, worse, if a department grew from 
+48 ports, and a department had 12 hosts, then 36 would remain unused.  Worse, if a department grew from 
 48 to to 49 ports, you had to make an emergency network buy.  
 
 Networks often solved these problems by adding routers, splitting department subnets and letting the 
@@ -20,7 +20,7 @@ routers handle traffic between them.  But routing can be expensive and slow, esp
 bursts of traffic.  Routing makes sense between networks you want to keep segregated, but it's
 overkill between two hosts that you know you want to keep together.
 
-Virtual LAN's, called VLAN's, evolved to solve these problems.  You can think of a VLAN as a logical 
+Virtual LAN's, called VLAN's, emerged to solve these problems.  You can think of a VLAN as a logical 
 network, mappable onto physical switches.  A VLAN is like an elastic switch -- you assign real ports to 
 a particular VLAN, then can add or remove them at will.  
 
@@ -38,10 +38,10 @@ make a more flexible setup.  Then we'll use VLAN technology between switches.
 
 You've probably noticed that, as we're designing networking applications we start with something 
 static and hard-coded, then gradually move to something configurable and dynamic.  This kind of 
-organic growth makes network application design more agile.  Trying to design and implement everything
-at once tends to make debugging difficult.
+organic growth makes network application design more agile.
+It's easier to start with a simple net app, debug it, then add and test more functionality a bit at a time.  
 
-So with VLANs, we'll start with a simple rule:
+So we'll start with a simple rule-based VLAN structure:
 
 \begin{itemize}
 \item Odd-numbered ports (1, 3, 5, \ldots) will get mapped to VLAN 1001
@@ -54,13 +54,13 @@ them as actual 802.1Q VLAN ids, since they fit into the range 1..4096.
 Hosts in each VLAN will talk only to hosts in their own VLAN, never to hosts in the other VLAN.  We'll talk
 about how to connect the two VLANs together a little later.  
 
-So in NetKAT, the L2 switch basic rule looks like this:
+As we saw in Chapter 4, in NetKAT the L2 switch basic rule looks like this:
 
 \begin{minted}{python}
 Filter(EthDstEq("11:11:11:11:11:11")) >> SetPort(2)
 \end{minted}
 
-Note that the destination, port 2, is on VLAN 1002, to which all even-numbered ports belong.  
+In our new VLAN-based network, port 2 is on VLAN 1002, to which all even-numbered ports belong.  
 To segregate the networks, we'll simply extend the rule to look like this:
 
 \begin{minted}{python}
@@ -70,10 +70,11 @@ Filter(PortEq(2,4,6,8,10)) >> Filter(EthDstEq("11:11:11:11:11:11")) >> SetPort(2
 Where we cobble together $2, 4, 6\ldots$ from the even-numbered ports we know about on the switch.  
 
 If the destination is unknown, instead of flooding packets out \emph{all} ports of the switch, 
-we'll flood over ports of the switch \emph{in the same VLAN}.  In other words, the Packet Out action will be:
+we'll flood over ports of the switch \emph{in the same VLAN}.  In other words, the Packet Out action 
+for a packet arriving at port 4 will be:
 
 \begin{minted}{python}
-SetPort(2,4,...)
+SetPort(2,6,8,10)
 \end{minted}
 
 We'll add some methods onto the \python{NetworkInformationBase} object to do some VLAN mapping.  The following
@@ -118,7 +119,8 @@ too static.  We want network operators to be able to change VLAN-to-port mapping
 by changing the interface configuration on the switch.
 
 So how are VLANs assigned to ports?  The procedure varies from switch to switch, but in most cases you
-create an \emph{untagged} interface.  On an HP switch, for example, you configure the interface information:
+create an \emph{untagged} interface.  On an HP switch, for example, you configure the interface information
+like this:
 
 \begin{minted}{console}
 coscintest-sw-ithaca# config
@@ -173,10 +175,10 @@ packet that entered the switch.  (This is a rare instance where packet modificat
 before Frenetic gets ahold of them.)
 
 Outgoing packets on these ports have VLAN information stripped from them.  That's because we generally 
-want hosts to be encumbered by VLAN information.  This allows us to move the host from one VLAN to another
-without reconfiguring it.  
+want hosts to be unencumbered by VLAN information.  This allows us to move the host from one VLAN to another
+without reconfiguring the host itself.  
 
-Learning VLAN-to-port mappings is very similar to learning MAC-to-port mappings.  In fact, 
+In our net app, learning VLAN-to-port mappings is very similar to learning MAC-to-port mappings.  In fact, 
 we can do it all at the
 same time.  We assume that an incoming packet for port $p$ with a VLAN tag of $v$ can be learned as a 
 VLAN-to-port mapping.  If a port is ever reassigned to another VLAN, the same \python{port_down} and
@@ -212,7 +214,7 @@ Which we enshrine in the \python{policy_for_dest} method, listed in
 
 In the \python{packet_in} handler, we read the VLAN from the packet instead of precomputing it:
 
-\inputminted[firstline=49,lastline=54]{python}{code/handling_vlans/vlan2.py}
+\inputminted[firstline=42,lastline=71]{python}{code/handling_vlans/vlan2.py}
 
 And now our switch handles VLANs dynamically.  You can create new VLANs, assign ports to them, rearrange or
 dismantle them altogether, all without restarting the network application.  
@@ -220,18 +222,18 @@ dismantle them altogether, all without restarting the network application.
 \section{Summary}
 
 Virtual LANs, or VLANs, introduce a level of indirection in creating a network.  Before them, physical
-switches forced physical boundaries on the design.  Overprovisioning meant many ports stood unused while 
-other switches were filled to the brim.  
+switches forced physical boundaries on the design.  Overprovisioning meant that many switches had
+unused ports while other switches were filled to the brim.  
 
 In this chapter we created:
 
 \begin{itemize}
 \item An application that simulates VLANs algorithmically
-\item And an extnded, dynamic application that reads VLAN information from packets and adjust accordingly, 
+\item And an extended, dynamic application that reads VLAN information from packets and adjust accordingly, 
 similar to our learning switch.
 \end{itemize}
 
-Note that you can combine these two approaches.  You can enforce certain rules, such as "Ports 1-35 will always
+Note that you can combine these two approaches.  You can enforce certain rules, such as "ports 1-35 will always
 be access ports assigned to VLANs 1000-1999, ports 35 and up will be on the management VLAN 1."  This is an
 excellent use case for SDN -- your rules will never be hampered by an inflexible switch.
 

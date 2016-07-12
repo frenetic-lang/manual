@@ -66,7 +66,7 @@ class VlanApp1(frenetic.App):
       if src_vlan == dst_vlan:
         actions = SetPort(dst_port)
       else:
-        actions = [ ]
+        actions = [ ]   # This is equivalent to dropping the packet
     else:
       actions = SetPort( nib.all_vlan_ports_except(src_vlan, port_id) )
     self.pkt_out(dpid, payload, actions )
