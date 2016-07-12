@@ -16,7 +16,7 @@ from networkx import *
 import pygraphviz as pgv
 
 CODE_ROOT = '/home/vagrant/manual/programmers_guide/code/'
-VERBOSE = True
+VERBOSE = False
 
 def pingall_test(folder, exe, topo=SingleSwitchTopo(4), custom_topo=None, expect_pct=0):
 
@@ -79,7 +79,7 @@ for proc in psutil.process_iter():
   if proc.name() == "frenetic.native" or proc.name() == "openflow.native":
     proc.kill()
 
-# # Test Suite
+# Test Suite
 pingall_test("quick_start", "repeater.py", topo=SingleSwitchTopo(2))
 pingall_test("netkat_principles", "repeater2.py", topo=SingleSwitchTopo(2))
 pingall_test("netkat_principles", "repeater3.py", expect_pct=100)
@@ -90,20 +90,21 @@ pingall_test("l2_learning_switch", "learning2.py", expect_pct=100)
 pingall_test("l2_learning_switch", "learning3.py")
 pingall_test("l2_learning_switch", "learning4.py")
 pingall_test("handling_vlans", "vlan1.py", expect_pct=66)
-# TODO: This requires tagging VLANs in OpenVswitch, which doesn't seem to be working
-# pingall_test("handling_vlans", "vlan2.py")
+sys.path.append("../handling_vlans")
+from mn_custom_topo import VlanMininetBuilder
+ct = VlanMininetBuilder()
+pingall_test("handling_vlans", "vlan2.py", custom_topo=ct, expect_pct=83)
 pingall_test("multiswitch_topologies", "multiswitch1.py", topo=TreeTopo(2,4))
 pingall_test("multiswitch_topologies", "multiswitch2.py", topo=TreeTopo(2,4))
-# TODO: Blows up with Key Error
-#pingall_test("multiswitch_topologies", "multiswitch3.py", topo=TreeTopo(2,4))
-sys.path.append("../routing")
-from mn_dot_topology import RouterMininetBuilder
-ct = RouterMininetBuilder(CODE_ROOT + "/routing/topology.dot")
-pingall_test("routing", "routing1.py", custom_topo=ct)
-# TODO: There is packet loss on these load balancers, but it's unclear why.  I don't think pingall
-# is the proper test.  
-# pingall_test("routing_variants", "load_balancer1.py", custom_topo=ct)
-# pingall_test("routing_variants", "load_balancer2.py", custom_topo=ct)
-# TODO: Don't know how to test the output on these.  Also requires extra apps
-# pingall_test("gathering_statistics", "stats1.py")
-# pingall_test("gathering_statistics", "stats2.py")
+pingall_test("multiswitch_topologies", "multiswitch3.py", topo=TreeTopo(3,3))
+# sys.path.append("../routing")
+# from mn_dot_topology import RouterMininetBuilder
+# ct = RouterMininetBuilder(CODE_ROOT + "/routing/topology.dot")
+# pingall_test("routing", "routing1.py", custom_topo=ct)
+# # TODO: There is packet loss on these load balancers, but it's unclear why.  I don't think pingall
+# # is the proper test.  
+# # pingall_test("routing_variants", "load_balancer1.py", custom_topo=ct)
+# # pingall_test("routing_variants", "load_balancer2.py", custom_topo=ct)
+# # TODO: Don't know how to test the output on these.  Also requires extra apps
+# # pingall_test("gathering_statistics", "stats1.py")
+# # pingall_test("gathering_statistics", "stats2.py")

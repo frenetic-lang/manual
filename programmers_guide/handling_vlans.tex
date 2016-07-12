@@ -128,46 +128,7 @@ coscintest-sw-ithaca(vlan-1)# vlan 1001
 coscintest-sw-ithaca(vlan-1001)# untagged A1
 \end{minted}
 
-This assigns the port A1 to VLAN 1001.  On OpenVSwitch, which is the OpenFlow switch we're using under Mininet, 
-the configuration is similar:
-
-\begin{quotation}
-\emph{NOTE: The following tag setting commands don't seem to work correctly on the OpenVSwitch version found on
-Frenetic VM.  Packet In messages have no VLAN tag.  One nasty workaround is to use a custom Mininet 
-topology, where a separate driver attached to an IP address on each Mininet host sends VLAN-tagged packets.
-This is not only a pain to model, but it's not how real OpenFlow switches (like the Dell and HP) handle
-VLANs.  }
-\end{quotation}
-
-\begin{minted}{console}
-mininet> sh ovs-vsctl set port s1-eth1 tag=1001
-mininet> sh ovs-vsctl set port s1-eth2 tag=1002
-mininet> sh ovs-vsctl set port s1-eth3 tag=1001
-mininet> sh ovs-vsctl set port s1-eth4 tag=1002
-mininet> sh ovs-vsctl show
-ae82ea91-2820-4b9f-9b01-fd8e897675b9
-    Bridge "s1"
-        Controller "tcp:127.0.0.1:6633"
-        Controller "ptcp:6634"
-        fail_mode: secure
-        Port "s1-eth4"
-            tag: 1002
-            Interface "s1-eth4"
-        Port "s1"
-            Interface "s1"
-                type: internal
-        Port "s1-eth2"
-            tag: 1002
-            Interface "s1-eth2"
-        Port "s1-eth1"
-            tag: 1001
-            Interface "s1-eth1"
-        Port "s1-eth3"
-            tag: 1001
-            Interface "s1-eth3"
-    ovs_version: "2.1.3"
-\end{minted}
-
+This assigns the port A1 to VLAN 1001.  
 That means any packets going into this port without any VLAN
 information (i.e. untagged) are implicitly tagged with a fixed VLAN id.   This VLAN id is visible in NetKAT
 predicates, and in the \python{packet_in} hook, even though they technically don't belong to the 
@@ -177,6 +138,34 @@ before Frenetic gets ahold of them.)
 Outgoing packets on these ports have VLAN information stripped from them.  That's because we generally 
 want hosts to be unencumbered by VLAN information.  This allows us to move the host from one VLAN to another
 without reconfiguring the host itself.  
+
+Unfortunately on OpenVSwitch, which Mininet uses 
+underneath the covers, configuration is not so easy.  When OpenVSwitch is running in 
+OpenFlow mode, you cannot assign VLAN tags to ports.  So we're going to use a Mininet
+custom topology, which is a Python program that sets up our toy network.  In the 
+following case, it'll look almost exactly like a single-switch 4 node network, except the 
+VLAN tags will be added on the host itself.  Though this is not exactly what happens 
+in real life, we can at least use the same net app for development and production work.
+
+\inputminted{python}{code/handling_vlans/mn_custom_topo.py}
+
+We start up this custom Topology like so, which lands at a Mininet prompt just as it 
+does for canned topologies:
+
+\begin{minted}{console}
+frenetic@ubuntu-1404:~/manual/programmers_guide/code/handling_vlans$ sudo python mn_custom_topo.py
+Unable to contact the remote controller at 127.0.0.1:6633
+Network ready
+Press Ctrl-d or type exit to quit
+mininet> net
+h1 h1-eth0.1001:s1-eth1
+h2 h2-eth0.1002:s1-eth2
+h3 h3-eth0.1001:s1-eth3
+h4 h4-eth0.1002:s1-eth4
+s1 lo:  s1-eth1:h1-eth0.1001 s1-eth2:h2-eth0.1002 s1-eth3:h3-eth0.1001 s1-eth4:h4-eth0.1002
+c1
+mininet>
+\end{minted}
 
 In our net app, learning VLAN-to-port mappings is very similar to learning MAC-to-port mappings.  In fact, 
 we can do it all at the
@@ -215,6 +204,23 @@ Which we enshrine in the \python{policy_for_dest} method, listed in
 In the \python{packet_in} handler, we read the VLAN from the packet instead of precomputing it:
 
 \inputminted[firstline=42,lastline=71]{python}{code/handling_vlans/vlan2.py}
+
+The first time we run the app, the performance seems abysmal:
+
+\begin{minted}{console}
+mininet> pingall
+*** Ping: testing ping reachability
+h1 -> X X X
+h2 -> X X X
+h3 -> h1 X X
+h4 -> X h2 X
+*** Results: 83% dropped (2/12 received)
+\end{minted}
+
+but this is normal.  When h1 starts pinging, there are no other hosts assigned to its VLAN.  
+Same with h2.  When h3 starts pinging, finally the program can send the pings over to the only
+host it knows on the same VLAN - h1.  h4 is similar.  The important thing is that, at no time do
+hosts on different VLANs talk to one another.  
 
 And now our switch handles VLANs dynamically.  You can create new VLANs, assign ports to them, rearrange or
 dismantle them altogether, all without restarting the network application.  
