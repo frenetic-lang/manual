@@ -17,3 +17,15 @@ Alternatively, from the command line you can run:
 $ cd programmers_guide
 $ make
 ```
+
+## Testing Code From the Guide
+
+All code in the Frenetic Programmers Guide can be tested with the automatic test harness. 
+To run:
+
+```
+$ cd programmers_guide/code/test
+$ sudo python test_suite.py
+```
+
+The test takes about 15 minutes to run on a MacBook under Frenetic User VM.  
