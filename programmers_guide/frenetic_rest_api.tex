@@ -35,7 +35,7 @@ these in detail.  The rest are outlined in Section \ref{reference:commands}.
 You push policies to Frenetic by using the \texttt{POST /$client\_id$/update\_json} verb.  The 
 $client\_id$ is identical to the $client\_id$ instance variable set in our Python language examples.
 To make the policy updates smaller, you can split the policy into multiple client id's, then 
-call \netkat{update\_json} on just that portion to update the policy.   Frenetic recompiles all the
+call \netkat{update_json} on just that portion to update the policy.   Frenetic recompiles all the
 policies together with an implicit \netkat{Union} -- so there can be no overlapping rules in each 
 of the clients.  
 

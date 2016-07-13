@@ -13,10 +13,6 @@ Frenetic has two statistics-gathering mechanisms:
 policies or \netkat{pkt_out} actions, and aggregate them.
 \end{itemize}
 
-\begin{quotation}
-\emph{SetQuery is not in the current Python bindings, but will be.  See Issue \#491 on Github}
-\end{quotation}
-
 We could add the statistics-gathering commands to an existing network application, like our learning
 switch.  But Frenetic allows you more flexibility.   
 
@@ -41,8 +37,7 @@ updating them a bit faster.
 
 One caveat is that all NetKAT policies from the applications are \netkat{Union}'ed together.  
 Therefore, according
-to NetKAT Principle 3, they should not have overlapping rules.  If this is a problem, you can use 
-concerns to modularize your application instead, which we'll cover in Chapter \ref{chapter:modularization}.
+to NetKAT Principle 3, they should not have overlapping rules.  
 
 The NIB for our statistics gathering process is fairly simple -- we save just the switch DPID and 
 port list.  Although we could share the NIB with the other applications, keeping it separate frees us
@@ -99,7 +94,7 @@ These are the per-port statistics defined in OpenFlow 1.0.
 
 You can also gather statistics based on NetKAT rules.  This is called a \emph{query} and you can think 
 of a query as just another location to send packets, like \netkat{SetPort} or \netkat{SetPipe}.
-So Principle TODO applies here.  Recall that a packet can have only one destination: a port, a pipe or a 
+Recall that a packet can have only one destination: a port, a pipe or a 
 query.  If you want packets to go to more than one destination, you need to use \netkat{Union} between
 them so packet copies are made.
 

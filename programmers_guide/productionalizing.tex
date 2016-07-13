@@ -25,13 +25,13 @@ Next install Git from your administrative login:
 \begin{minted}{console}
 ubuntu@ubuntu:~$ sudo apt-get update
 ubuntu@ubuntu:~$ sudo apt-get install git
-\end{console}
+\end{minted}
 
 Retrieve the code from the Frenetic-vm Github repository:
 
 \begin{minted}{console}
 ubuntu@ubuntu:~$ git clone https://github.com/frenetic-lang/frenetic-vm
-\end{console}
+\end{minted}
 
 Then run the administrative provisioning script.  This installs all the supporting software for 
 Frenetic, and should take somewhere from 5 to 30 minutes.
@@ -39,7 +39,7 @@ Frenetic, and should take somewhere from 5 to 30 minutes.
 \begin{minted}{console}
 ubuntu@ubuntu:~$ cd frenetic-vm
 ubuntu@ubuntu:~/frenetic-vm$ sudo ./root-bootstrap.sh 
-\end{console}
+\end{minted}
 
 Create a non-root user under which Frenetic and the application will run.  In our examples, we will
 use \codefilename{frenetic} user:
@@ -87,7 +87,7 @@ frenetic@localhost's password:
 Connected to localhost.
 sftp> put user-bootstrap.sh
 Uploading user-bootstrap.sh to /home/frenetic/user-bootstrap.sh
-user-bootstrap.sh                                                                                 100%  296     0.3KB/s   00:00
+user-bootstrap.sh  100%  296     0.3KB/s   00:00
 sftp> quit
 \end{minted}
 

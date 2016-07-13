@@ -2,7 +2,7 @@
 
 In Layer 3 routing, you bascially compute next hop information based on the IP destination address,
 shifting the ethernet source and destination as you move the packet along.  In routing, you 
-always keep the remaining headers values, especially the IP source and destination address, 
+always keep the remaining header values, especially the IP source and destination address, 
 constant. 
 
 A few useful variants of Layer 3 routing change other packet headers as well:
@@ -16,14 +16,17 @@ Ths load balancer can partition user traffic to maximize efficiency.
 externally visible, public IP address.  But the machines themselves use private, non-routable
 IP addresses.  The NAT box translates these private addresses to the public one on outgoing packets,
 and the reverse on incoming ones.   NAT enables conversations originating on the private
-network only.  
+network only, and blocks conversations originating outside the private network.  
 \item In a \emph{firewall}, NAT is augmented with security features to allow incoming traffic
 as well.  The traffic must follow certain rules -- for example, only port 80 on a certain IP.  
 \end{itemize}
 
+In this chapter, we'll write a load balancer.  The concepts are applicable to other 
+types of routing devices.  
+
 In previous chapters, we always wrote our programs from a blank slate.  Because load balancers, 
 NAT boxes and firewalls are so much like routing, we will take a different approach.  We will
-treat the router handler as a superclass, and write our specialized devices as subclasses of it.
+treat the router handler as a superclass, and write our specialized device as a subclass of it.
 In addition, we'll use the NIB developed for routers and subclass it to add any additional 
 information needed for the specialized box.  
 
@@ -34,10 +37,10 @@ parts was virtually impossible without the source code.  With Frenetic, you can 
 of easily extendible network pieces, and use them for purposes far beyond what the original
 authors intended. 
 
-\section{Load Balancing}
+\section{Design}
 
 A \emph{load balancer} distributes client requests to certain servers invisibly.  When
-we enter a request to http://www.google.com, which is one IP address, but the request is handled
+we enter a request to http://www.google.com, which is one IP address, the request is handled
 by one of thousands of servers at Google.  This is good for the client, who then doesn't have to 
 try certain backend IP addresses until they find a fast server.  But it's also good for the 
 server owner's security -- by not publicly posting their back end IP's, they can prevent 
@@ -57,7 +60,7 @@ which host serves the content.
 
 We use this information to power the load balancer.  So if h3 and h4 are equivalent, how
 does the load balancer decide where to send a request for 10.0.2.100?  The load balancer
-can be as simple or as sophisticated as it wants:
+can be as simple or as sophisticated as you want:
 
 \begin{itemize}
 \item In \emph{Round Robin} scheduling, each subsequent request goes to the next server in the 
@@ -92,6 +95,8 @@ host will receive a reply from a back-end IP, which it never sent to, and will p
 the packet.  
 \end{itemize}
 
+\section{Implementation}
+
 So let's get to it!  In the first incarnation of or load balancer, as in the past, we'll 
 do load balancing tasks solely in the controller.  Once that's debugged, we can move these
 steps to rules in the flow table.  To configure the load balancer, as in the past
@@ -109,15 +114,14 @@ The following code is in from \codefilename{routing_variants/load_balancer_nib.p
 
 \inputminted{python}{code/routing_variants/load_balancer_nib.py}
 
-Note hwo we define a subclass of Routing's \python{NetworkInformationBase} class, which
-Python finds by the addition of \codefilename{../routing} to the class path.  There are more sophistcated
-ways to structure your network function library, and you do that down the road.  
+Note how we define a subclass of Routing's \python{NetworkInformationBase} class, which
+Python finds by the addition of \codefilename{../routing} to the class path.    
 
 The method \python{backend_ip} does the heavy lifting of assigning a client IP to a back-end
 server (if it hasn't already been assigned).  If this were a more sophisticated load balancing
 algorithm, this method would bear the brunt of it.  Our version is fairly simple.
 
-Next we define the network application itself.  The following code is in from 
+The following code is in from 
 \codefilename{routing_variants/load_balancer1.py}:
 
 \inputminted{python}{code/routing_variants/load_balancer1.py}
@@ -272,13 +276,11 @@ h4-eth0   Link encap:Ethernet  HWaddr 00:00:02:00:00:03
           RX bytes:518 (518.0 B)  TX bytes:476 (476.0 B)
 \end{minted}
 
+\section{A More Efficient Implementation}
+
 OK, so this works fine, but it forces all load balancer traffic through the controller.  We can
 now enshrine these actions in rules.  A simple change to our \python{policy} handler will take
 care of that.  
-
-\begin{quotation}
-\emph{NOTE:  This program doesn't work yet.}
-\end{quotation}
 
 The following code is in from 
 \codefilename{routing_variants/load_balancer_handler2.py}:
@@ -304,7 +306,16 @@ and in the Packet Out command of the Packet In handler:
 
 \inputminted[firstline=87]{python}{code/routing_variants/load_balancer_handler2.py} 
 
-\section{Network Address Translation, or NAT}
+\section{Summary}
 
-\section{Firewalls}
+Load Balancers act at Layer 3, much like a router, so we steal router functionality by 
+subclassing the router and its NIB.  Then our code simply overrides router functionality
+where it differs from routers - for example, in answering ARPs to the front end IP.  
+
+To build a NAT device or firewall, you can use the same approach.  Firewalls tend to 
+add functionality at layer 4 as well, looking at TCP and UDP streams as entire
+conversations.  
+
+Modern network devices gather lots of statistics about their operation, and Frenetic can
+tap into these statistics.   The next chapter will show you how.  
 

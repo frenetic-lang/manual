@@ -1,4 +1,5 @@
 import re, sys, os, psutil, time
+from subprocess import *
 
 # Mininet imports
 from mininet.log import lg, info, error, debug, output
@@ -9,16 +10,11 @@ from mininet.net import Mininet
 from mininet.topo import SingleSwitchTopo
 from mininet.topolib import TreeTopo
 from mininet.clean import Cleanup
-from subprocess import *
-
-# NetworkX Imports
-from networkx import *
-import pygraphviz as pgv
 
 CODE_ROOT = '/home/vagrant/manual/programmers_guide/code/'
 VERBOSE = False
 
-def pingall_test(folder, exe, topo=SingleSwitchTopo(4), custom_topo=None, expect_pct=0):
+def pingall_test(folder, exe, topo=SingleSwitchTopo(4), custom_topo=None, custom_test=None, expect_pct=0):
 
   ip="127.0.0.1"
   port=6633
@@ -54,7 +50,10 @@ def pingall_test(folder, exe, topo=SingleSwitchTopo(4), custom_topo=None, expect
     stdout=devnull, stderr=devnull, cwd=CODE_ROOT+folder
   )
 
-  got_pct = int(net.pingAll())
+  if custom_test:
+    got_pct = int(custom_test(net))
+  else:
+    got_pct = int(net.pingAll())
 
   expected_msg = " expected "+str(expect_pct)+"% dropped got "+str(got_pct)+"% dropped" 
   print exe + ("...ok" if expect_pct==got_pct else expected_msg)
@@ -68,6 +67,19 @@ def pingall_test(folder, exe, topo=SingleSwitchTopo(4), custom_topo=None, expect
     net.stop()
   except OSError:
     pass
+
+def load_balancer_test(net):
+  time.sleep(5)  # Wait for rules to be propogated
+  successful_pings = 0
+  # Pings wait for 60 seconds because the first one generates a lot of ARPs which 
+  # are slow to get answered.  
+  ping_front1 = net.getNodeByName("h1").cmd("ping -c 1 -w 60 10.0.2.100")
+  if re.search('1 received',ping_front1):
+    successful_pings += 1
+  ping_front2 = net.getNodeByName("h2").cmd("ping -c 1 -w 60 10.0.2.100")
+  if re.search('1 received',ping_front2):
+    successful_pings += 1
+  return ((2 - successful_pings) / 2.0) * 100.0
 
 if os.getenv("SUDO_USER") == None: 
   print "This program need 'sudo'"; 
@@ -97,14 +109,9 @@ pingall_test("handling_vlans", "vlan2.py", custom_topo=ct, expect_pct=83)
 pingall_test("multiswitch_topologies", "multiswitch1.py", topo=TreeTopo(2,4))
 pingall_test("multiswitch_topologies", "multiswitch2.py", topo=TreeTopo(2,4))
 pingall_test("multiswitch_topologies", "multiswitch3.py", topo=TreeTopo(3,3))
-# sys.path.append("../routing")
-# from mn_dot_topology import RouterMininetBuilder
-# ct = RouterMininetBuilder(CODE_ROOT + "/routing/topology.dot")
-# pingall_test("routing", "routing1.py", custom_topo=ct)
-# # TODO: There is packet loss on these load balancers, but it's unclear why.  I don't think pingall
-# # is the proper test.  
-# # pingall_test("routing_variants", "load_balancer1.py", custom_topo=ct)
-# # pingall_test("routing_variants", "load_balancer2.py", custom_topo=ct)
-# # TODO: Don't know how to test the output on these.  Also requires extra apps
-# # pingall_test("gathering_statistics", "stats1.py")
-# # pingall_test("gathering_statistics", "stats2.py")
+sys.path.append("../routing")
+from mn_dot_topology import RouterMininetBuilder
+ct = RouterMininetBuilder(CODE_ROOT + "/routing/topology.dot")
+pingall_test("routing", "routing1.py", custom_topo=ct)
+pingall_test("routing_variants", "load_balancer1.py", custom_topo=ct, custom_test=load_balancer_test)
+pingall_test("routing_variants", "load_balancer2.py", custom_topo=ct, custom_test=load_balancer_test)

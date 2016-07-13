@@ -31,7 +31,7 @@ Note in Python, \python{Id} and \python{Drop} are the only predicates that don't
 \textsc{Python}   & \texttt{EthDstEq("72:00:08:bc:5f:a0")}    & \texttt{EthDstNotEq("72:00:08:bc:5f:a0")} \\
     & \texttt{EthDstEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")}  & \texttt{EthDstNotEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")} \\
     & \texttt{EthDstEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])}  & \texttt{EthDstNotEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])} \\ \\
-\textsc{Raw}    & \texttt{ethDst = 125344472129440}     & \\ \\
+\textsc{Raw}    & \texttt{ethDst = 82:9b:41:a6:16:f8}     & \\ \\
 \textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ethdst", "value": 125344472129440 \} }} 
 \end{tabularx}
 
@@ -39,9 +39,9 @@ Note in Python, \python{Id} and \python{Drop} are the only predicates that don't
 if the 
 parameter is a list of addresses, there is an implicit OR between them.    
 
-In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+In Python and Raw NetKAT, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
 for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
-boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+boundaries).  In Python, they must be passed as strings.  In REST-based NetKAT, you must send the 48-bit MAC as 
 an integer.  
 
 \subsubsection{EthSrc}
@@ -51,7 +51,7 @@ an integer.
 \textsc{Python}   & \texttt{EthSrcEq("72:00:08:bc:5f:a0")}    & \texttt{EthSrcNotEq("72:00:08:bc:5f:a0")} \\
     & \texttt{EthSrcEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")}  & \texttt{EthSrcNotEq("72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8")} \\
     & \texttt{EthSrcEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])}  & \texttt{EthSrcNotEq(["72:00:08:bc:5f:a0", "82:9b:41:a6:16:f8"])} \\ \\
-\textsc{Raw}    & \texttt{ethSrc = 125344472129440}     & \\ \\
+\textsc{Raw}    & \texttt{ethSrc = 82:9b:41:a6:16:f8}     & \\ \\
 \textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ethsrc", "value": 125344472129440 \} }} 
 \end{tabularx}
 
@@ -59,9 +59,9 @@ an integer.
 if the 
 parameter is a list of addresses, there is an implicit OR between them.    
 
-In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+In Python and Raw NetKAT, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
 for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
-boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+boundaries).  In Python, they must be passed as strings.  In REST-based NetKAT, you must send the 48-bit MAC as 
 an integer.  
 
 \subsubsection{EthType}
@@ -71,7 +71,7 @@ an integer.
 \textsc{Python}   & \texttt{EthTypeEq(0x800)}    & \texttt{EthTypeNotEq(0x800)} \\
     & \texttt{EthTypeEq(0x800, 0x806)}  & \texttt{EthTypeNotEq(0x800, 0x806)} \\
     & \texttt{EthTypeEq([0x800, 0x806])}  & \texttt{EthTypeNotEq([0x800, 0x806])} \\ \\
-\textsc{Raw}    & \texttt{ethTyp = 2048}     & \\ \\
+\textsc{Raw}    & \texttt{ethTyp = 0x800}     & \\ \\
 \textsc{REST} & \multicolumn{2}{l}{\texttt{ \{ "type": "test", "header": "ethtype", "value": 2048 \} }} 
 \end{tabularx}
 
@@ -80,9 +80,9 @@ parameter is a list of types, there is an implicit OR between them.  The frame t
 integer as defined by IEEE, and the common ones are listed at 
 http://www.iana.org/assignments/ieee-802-numbers/ieee-802-numbers.xhtml
 
-Python can accept any valid 32 bit integer representation for the frame type -- it's common to pass them
-as hexadecimal values because they're easy to remember.  You can also use constants defined in 
-\python{ryu.packet.ether_types}.  Raw and REST-based NetKAT requires them to be specified in
+Python and Raw NetKAT can accept any valid 32 bit integer representation for the frame type -- it's common to pass them
+as hexadecimal values because they're easy to remember.  In Python, you can also use constants defined in 
+\python{ryu.packet.ether_types}.  REST-based NetKAT requires them to be specified in
 decimal.
 
 Certain OpenFlow match rules have \emph{dependencies} on the Ethernet type.  
@@ -133,7 +133,7 @@ Instead, you can specify a subnet -- a range
 of IP addresses using a bit mask value.  This is identical to using CIDR format, so that 
 \python{IP4DstEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
 IP addresses \python{192.168.57.1} to \python{192.168.57.255}.  Leaving out the subnet mask in Python 
-or Raw NetKAT is equivalent to specifiying a mask of 32 - meaning all 32 bits of the IP address are used
+or Raw NetKAT is equivalent to specifying a mask of 32 - meaning all 32 bits of the IP address are used
 in the match.  (The 32 must be explicitly specified in REST-based NetKAT).
 
 \subsubsection{IPProto}
@@ -175,7 +175,7 @@ Instead, you can specify a subnet -- a range
 of IP addresses using a bit mask value.  This is identical to using CIDR format, so that 
 \python{IP4SrcEq("192.168.57.0", 24)} matches IP addresses in subnet \python{192.168.57.0/24} -- e.g. 
 IP addresses \python{192.168.57.1} to \python{192.168.57.255}.  Leaving out the subnet mask in Python 
-or Raw NetKAT is equivalent to specifiying a mask of 32 - meaning all 32 bits of the IP address are used
+or Raw NetKAT is equivalent to specifying a mask of 32 - meaning all 32 bits of the IP address are used
 in the match.  (The 32 must be explicitly specified in REST-based NetKAT).
 
 
@@ -388,7 +388,7 @@ It is described in detail in Section \ref{section:combining}.
 \textsc{REST} & \texttt{ \{ "type": "filter", "pred": \{ "type": true \} \} } 
 \end{tabularx}
 
-\python{drop} is a \emph{policy} that drops all packets.  It is equivalent to \python{Filter(true)}.
+\python{id} is a \emph{policy} that accepts all packets.  It is equivalent to \python{Filter(true)}.
 
 Note that in Python, \python{id} and \python{drop} are the only policies that begin with a lower case
 letter, and do not require parantheses.  
@@ -405,16 +405,11 @@ letter, and do not require parantheses.
 
 \python{SendToController} sends the packet to the controller.   
 
-The pipe name is an arbitrary string.  You can use it to distinguish \ldots TODO
+The pipe name is an arbitrary string. 
 
 A packet may have only one destination: a port, a query bucket, or the controller.  So if you use 
 \netkat{SetPort}, \netkat{SendToController}, or \netkat{SendToQuery} in a sequence, the last one will
 win.  If you want a packet to go to more than one destination, use \netkat{Union} between them.    
-
-\begin{quotation}
-\emph{Note: I'm not sure how you distinguish packets using pipes since they're not part of the 
-packet and you can't do matches on them.}
-\end{quotation}
 
 \subsubsection{SendToQuery}
 
@@ -438,15 +433,15 @@ win.  If you want a packet to go to more than one destination, use \netkat{Union
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{SetEthDst("72:00:08:bc:5f:a0")} \\ \\
-\textsc{Raw}    & \texttt{ethDst := 125344472129440}     \\ \\
+\textsc{Raw}    & \texttt{ethDst := 72:00:08:bc:5f:a0}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "ethdst", "value": 125344472129440 \} }
 \end{tabularx}
 
 \python{SetEthDst} sets the Ethernet MAC destination address for a packet.    
 
-In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+In Python or Raw NetKAT, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
 for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
-boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+boundaries).  In Python, they must be passed as strings.  In REST-based NetKAT, you must send the 48-bit MAC as 
 an integer.  
 
 \subsubsection{SetEthSrc}
@@ -454,15 +449,15 @@ an integer.
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{SetEthSrc("72:00:08:bc:5f:a0")} \\ \\
-\textsc{Raw}    & \texttt{ethSrc := 125344472129440}     \\ \\
+\textsc{Raw}    & \texttt{ethSrc := 72:00:08:bc:5f:a0}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "ethsrc", "value": 125344472129440 \} }
 \end{tabularx}
 
 \python{SetEthDst} sets the Ethernet MAC source address for a packet.    
 
-In Python, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
+In Python and Raw NetKAT, a MAC address must be specified in colon-separated 6 byte hexadecimal.  This is the most common format
 for MAC address display on network devices (although Cisco tends to list them in dotted notation with 2 byte
-boundaries).  They must be passed as strings.  In Raw or REST-based NetKAT, you must send the 48-bit MAC as 
+boundaries).  In Python, they must be passed as strings.  In REST-based NetKAT, you must send the 48-bit MAC as 
 an integer.  
 
 \subsubsection{SetEthType}
@@ -470,7 +465,7 @@ an integer.
 \bigskip
 \begin{tabularx}{\linewidth}{lX}
 \textsc{Python}   & \texttt{SetEthType(0x800)} \\ \\
-\textsc{Raw}    & \texttt{ethTyp := 2048}     \\ \\
+\textsc{Raw}    & \texttt{ethTyp := 0x800}     \\ \\
 \textsc{REST} & \texttt{ \{ "type": "mod", "header": "ethtype", "value": 2048 \} }
 \end{tabularx}
 
@@ -553,7 +548,7 @@ port will fail silently.
 port is specified, there is an implicit \netkat{Union} between them -- in other words, packets are copied
 to each one of the ports.  
 
-A packet may have only one destination: a port, a query bucket, or the controller.  So if you use 
+A packet may have only one destination: a port (or set of ports), a query bucket, or the controller.  So if you use 
 \netkat{SetPort}, \netkat{SendToController}, or \netkat{SendToQuery} in a sequence, the last one will
 win.  If you want a packet to go to more than one destination, use \netkat{Union} between them.    
 
@@ -667,7 +662,7 @@ In Python, each Frenetic event has a hook listed below.  If the application defi
 signature, that handler is called on the event.  If the user doesn't define a handler, a default handler is
 invoked which simply logs the event.  
 
-In REST, calling the URL \netkat{/events/$client\_id$} will
+In REST, calling the URL \netkat{/events/client_id} will
 return the JSON data below if the event has been fired. 
 
 \subsection{connected}
